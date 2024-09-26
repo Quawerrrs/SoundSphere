@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart'; // Importez firebase_core
 import 'package:firebase_auth/firebase_auth.dart'; // Importez firebase_auth
+import 'package:cloud_firestore/cloud_firestore.dart'; // Importez Firestore
 import './pages/PlaylistPage.dart'; // Remplacez par le chemin correct vers PlaylistPage
 
 // Remplacez par votre configuration Firebase
@@ -14,15 +15,13 @@ const firebaseOptions = FirebaseOptions(
 );
 
 Future<void> main() async {
-  WidgetsFlutterBinding
-      .ensureInitialized(); // Assurez-vous que Flutter est initialisé
+  WidgetsFlutterBinding.ensureInitialized(); // Assurez-vous que Flutter est initialisé
 
   // Vérifiez si Firebase a déjà été initialisé
   try {
-    await Firebase.initializeApp(
-        options: firebaseOptions); // Initialisez Firebase avec les options
+    await Firebase.initializeApp(options: firebaseOptions); // Initialisez Firebase avec les options
   } catch (e) {
-    print("Firebase already initialized: $e"); // Gérer l'erreur
+    print("Firebase déjà initialisé: $e"); // Gérer l'erreur
   }
 
   runApp(const MyApp());
@@ -54,6 +53,7 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _pseudoController = TextEditingController(); // Contrôleur pour le pseudo
   bool isLogin = true;
 
   @override
@@ -61,18 +61,19 @@ class _LoginPageState extends State<LoginPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _pseudoController.dispose(); // Dispose du contrôleur pseudo
     super.dispose();
   }
 
   Future<void> _login() async {
     try {
       await _auth.signInWithEmailAndPassword(
-          email: _emailController.text, password: _passwordController.text);
+        email: _emailController.text, 
+        password: _passwordController.text,
+      );
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-            builder: (context) =>
-                const PlaylistPage()), // Redirection vers PlaylistPage
+        MaterialPageRoute(builder: (context) => const PlaylistPage()), // Redirection vers PlaylistPage
       );
     } catch (e) {
       print(e);
@@ -91,13 +92,28 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     try {
-      await _auth.createUserWithEmailAndPassword(
-          email: _emailController.text, password: _passwordController.text);
+      // Créer l'utilisateur avec Firebase Auth
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+
+      // Enregistrer le pseudo et d'autres informations dans Firestore
+      await FirebaseFirestore.instance
+          .collection('users') // Collection "users" dans Firestore
+          .doc(userCredential.user?.uid) // Utiliser l'UID de l'utilisateur comme ID du document
+          .set({
+        'email': _emailController.text,
+        'pseudo': _pseudoController.text, // Stocker le pseudo dans Firestore
+        'createdAt': Timestamp.now(), // Ajouter un timestamp pour la création
+      });
+
+      // Mettre à jour le displayName de l'utilisateur
+      await userCredential.user!.updateProfile(displayName: _pseudoController.text);
+
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-            builder: (context) =>
-                const PlaylistPage()), // Redirection vers PlaylistPage
+        MaterialPageRoute(builder: (context) => const PlaylistPage()), // Redirection vers PlaylistPage
       );
     } catch (e) {
       print(e);
@@ -143,8 +159,7 @@ class _LoginPageState extends State<LoginPage> {
                       'Login',
                       style: TextStyle(
                         fontSize: 18,
-                        fontWeight:
-                            isLogin ? FontWeight.bold : FontWeight.normal,
+                        fontWeight: isLogin ? FontWeight.bold : FontWeight.normal,
                         color: isLogin ? Colors.black : Colors.grey,
                       ),
                     ),
@@ -159,8 +174,7 @@ class _LoginPageState extends State<LoginPage> {
                       'Register',
                       style: TextStyle(
                         fontSize: 18,
-                        fontWeight:
-                            !isLogin ? FontWeight.bold : FontWeight.normal,
+                        fontWeight: !isLogin ? FontWeight.bold : FontWeight.normal,
                         color: !isLogin ? Colors.black : Colors.grey,
                       ),
                     ),
@@ -168,44 +182,64 @@ class _LoginPageState extends State<LoginPage> {
                 ],
               ),
               const SizedBox(height: 20),
+
+              // Champ Email
               TextField(
                 controller: _emailController,
                 style: const TextStyle(color: Colors.black), // Couleur du texte
                 decoration: InputDecoration(
                   labelText: 'Email',
-                  labelStyle: const TextStyle(
-                      color: Colors.black), // Couleur de l'étiquette
-                  border: OutlineInputBorder(),
+                  labelStyle: const TextStyle(color: Colors.black), // Couleur de l'étiquette
+                  border: const OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.emailAddress,
               ),
+
               const SizedBox(height: 10),
+
+              // Champ Password
               TextField(
                 controller: _passwordController,
                 style: const TextStyle(color: Colors.black), // Couleur du texte
                 decoration: InputDecoration(
                   labelText: 'Password',
-                  labelStyle: const TextStyle(
-                      color: Colors.black), // Couleur de l'étiquette
-                  border: OutlineInputBorder(),
+                  labelStyle: const TextStyle(color: Colors.black), // Couleur de l'étiquette
+                  border: const OutlineInputBorder(),
                 ),
                 obscureText: true,
               ),
+
               if (!isLogin) const SizedBox(height: 10),
+
+              // Champ Confirm Password (si inscription)
               if (!isLogin)
                 TextField(
                   controller: _confirmPasswordController,
-                  style:
-                      const TextStyle(color: Colors.black), // Couleur du texte
+                  style: const TextStyle(color: Colors.black), // Couleur du texte
                   decoration: InputDecoration(
                     labelText: 'Confirm Password',
-                    labelStyle: const TextStyle(
-                        color: Colors.black), // Couleur de l'étiquette
-                    border: OutlineInputBorder(),
+                    labelStyle: const TextStyle(color: Colors.black), // Couleur de l'étiquette
+                    border: const OutlineInputBorder(),
                   ),
                   obscureText: true,
                 ),
+
+              // Champ Pseudo (si inscription)
+              if (!isLogin) const SizedBox(height: 10),
+              if (!isLogin)
+                TextField(
+                  controller: _pseudoController,  // Nouveau champ pseudo
+                  style: const TextStyle(color: Colors.black), // Couleur du texte
+                  decoration: InputDecoration(
+                    labelText: 'Pseudo',
+                    labelStyle: const TextStyle(color: Colors.black), // Couleur de l'étiquette
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+
               const SizedBox(height: 20),
+
+              // Bouton Se connecter / S'inscrire
               ElevatedButton(
                 onPressed: () {
                   if (isLogin) {
@@ -216,11 +250,8 @@ class _LoginPageState extends State<LoginPage> {
                 },
                 child: Text(isLogin ? 'Se connecter' : 'S\'inscrire'),
               ),
+
               const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [],
-              ),
             ],
           ),
         ),
@@ -228,3 +259,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
+//test 
+//test 
+//test 
