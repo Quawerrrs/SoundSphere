@@ -12,40 +12,72 @@ class _MembersPageState extends State<MembersPage> {
   final TextEditingController _searchController = TextEditingController();
   List<DocumentSnapshot> members = [];
   List<DocumentSnapshot> filteredMembers = [];
+  bool isLoading = true; // Indicateur de chargement
 
   @override
   void initState() {
     super.initState();
-    _fetchMembers(); // Récupérer les membres depuis Firestore
+    _fetchMembers(); // Récupérer les utilisateurs depuis Firestore
   }
 
-  void _fetchMembers() async {
-    try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('members').get();
-      setState(() {
-        members = snapshot.docs;
-        filteredMembers = members; // Initialiser la liste filtrée avec tous les membres
-      });
-    } catch (e) {
-      print("Erreur lors de la récupération des membres : $e");
-      // Vous pouvez également afficher une alerte ou un message d'erreur à l'utilisateur ici
-    }
+  // Utiliser un stream pour écouter les changements en temps réel dans Firestore
+  void _fetchMembers() {
+    print("Démarrage de la récupération des utilisateurs...");
+    FirebaseFirestore.instance.collection('users').snapshots().listen(
+      (snapshot) {
+        if (snapshot.docs.isEmpty) {
+          print("Aucun utilisateur trouvé dans la collection 'users'.");
+        } else {
+          for (var doc in snapshot.docs) {
+            print(
+                "Utilisateur trouvé : ${doc.data()}"); // Affiche les données de chaque utilisateur
+          }
+        }
+
+        setState(() {
+          members = snapshot.docs;
+          // Filtrer uniquement les utilisateurs ayant un champ 'email'
+          filteredMembers = members.where((member) {
+            final data = member.data(); // Récupérer les données
+            return data != null &&
+                data is Map<String, dynamic> &&
+                data.containsKey('email');
+          }).toList();
+          isLoading = false; // Arrêter l'indicateur de chargement
+        });
+        print(
+            "Récupération des utilisateurs réussie : ${members.length} utilisateurs trouvés.");
+      },
+      onError: (e) {
+        print("Erreur lors de la récupération des utilisateurs : $e");
+        setState(() {
+          isLoading =
+              false; // Arrêter l'indicateur de chargement en cas d'erreur
+        });
+      },
+    );
   }
 
   void _filterMembers(String query) {
     final filteredList = members.where((member) {
-      return member['name'].toString().toLowerCase().contains(query.toLowerCase());
+      final data = member.data();
+      return data != null &&
+          data is Map<String, dynamic> &&
+          data.containsKey('email') &&
+          data['email'].toString().toLowerCase().contains(query.toLowerCase());
     }).toList();
     setState(() {
       filteredMembers = filteredList;
     });
+    print(
+        "Utilisateurs filtrés : ${filteredMembers.length} résultats trouvés pour '$query'.");
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Membres'),
+        title: const Text('Utilisateurs'),
         backgroundColor: Colors.black,
       ),
       body: Column(
@@ -55,7 +87,7 @@ class _MembersPageState extends State<MembersPage> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Rechercher un membre...',
+                hintText: 'Rechercher par email...',
                 prefixIcon: const Icon(Icons.search, color: Colors.white),
                 filled: true,
                 fillColor: Colors.grey[800],
@@ -69,36 +101,44 @@ class _MembersPageState extends State<MembersPage> {
             ),
           ),
           Expanded(
-            child: filteredMembers.isEmpty
-                ? const Center(child: CircularProgressIndicator()) // Indicateur de chargement
-                : ListView.builder(
-                    itemCount: filteredMembers.length,
-                    itemBuilder: (context, index) {
-                      return Card(
-                        color: Colors.grey[850], // Couleur de fond de la carte
-                        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                        child: ListTile(
-                          title: Text(
-                            filteredMembers[index]['name'],
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                          subtitle: Text(
-                            filteredMembers[index]['email'], // Affichez l'email du membre
-                            style: const TextStyle(color: Colors.white70),
-                          ),
-                          onTap: () {
-                            // Action lors du clic sur un membre
-                            print('Membre sélectionné : ${filteredMembers[index]['name']}');
-                          },
-                        ),
-                      );
-                    },
-                  ),
+            child: isLoading
+                ? const Center(
+                    child:
+                        CircularProgressIndicator()) // Indicateur de chargement
+                : filteredMembers.isEmpty && _searchController.text.isEmpty
+                    ? const Center(
+                        child: Text('Aucun utilisateur trouvé.',
+                            style: TextStyle(color: Colors.white)))
+                    : ListView.builder(
+                        itemCount: filteredMembers.length,
+                        itemBuilder: (context, index) {
+                          final member = filteredMembers[index];
+                          final data = member.data()
+                              as Map<String, dynamic>; // Conversion explicite
+                          return Card(
+                            color:
+                                Colors.grey[850], // Couleur de fond de la carte
+                            margin: const EdgeInsets.symmetric(
+                                vertical: 8, horizontal: 16),
+                            child: ListTile(
+                              title: Text(
+                                // Afficher uniquement l'email de l'utilisateur
+                                data[
+                                    'email'], // Utilisation de l'email après conversion
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                              onTap: () {
+                                // Action lors du clic sur un utilisateur
+                                print(
+                                    'Utilisateur sélectionné avec email : ${data['email']}');
+                              },
+                            ),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
     );
   }
 }
-//test 
-//test 

@@ -15,11 +15,13 @@ const firebaseOptions = FirebaseOptions(
 );
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // Assurez-vous que Flutter est initialisé
+  WidgetsFlutterBinding
+      .ensureInitialized(); // Assurez-vous que Flutter est initialisé
 
   // Vérifiez si Firebase a déjà été initialisé
   try {
-    await Firebase.initializeApp(options: firebaseOptions); // Initialisez Firebase avec les options
+    await Firebase.initializeApp(
+        options: firebaseOptions); // Initialisez Firebase avec les options
   } catch (e) {
     print("Firebase déjà initialisé: $e"); // Gérer l'erreur
   }
@@ -53,7 +55,8 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _pseudoController = TextEditingController(); // Contrôleur pour le pseudo
+  final _pseudoController =
+      TextEditingController(); // Contrôleur pour le pseudo
   bool isLogin = true;
 
   @override
@@ -68,12 +71,14 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _login() async {
     try {
       await _auth.signInWithEmailAndPassword(
-        email: _emailController.text, 
+        email: _emailController.text,
         password: _passwordController.text,
       );
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const PlaylistPage()), // Redirection vers PlaylistPage
+        MaterialPageRoute(
+            builder: (context) =>
+                const PlaylistPage()), // Redirection vers PlaylistPage
       );
     } catch (e) {
       print(e);
@@ -93,7 +98,8 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       // Créer l'utilisateur avec Firebase Auth
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      UserCredential userCredential =
+          await _auth.createUserWithEmailAndPassword(
         email: _emailController.text,
         password: _passwordController.text,
       );
@@ -101,7 +107,8 @@ class _LoginPageState extends State<LoginPage> {
       // Enregistrer le pseudo et d'autres informations dans Firestore
       await FirebaseFirestore.instance
           .collection('users') // Collection "users" dans Firestore
-          .doc(userCredential.user?.uid) // Utiliser l'UID de l'utilisateur comme ID du document
+          .doc(userCredential.user
+              ?.uid) // Utiliser l'UID de l'utilisateur comme ID du document
           .set({
         'email': _emailController.text,
         'pseudo': _pseudoController.text, // Stocker le pseudo dans Firestore
@@ -109,11 +116,14 @@ class _LoginPageState extends State<LoginPage> {
       });
 
       // Mettre à jour le displayName de l'utilisateur
-      await userCredential.user!.updateProfile(displayName: _pseudoController.text);
+      await userCredential.user!
+          .updateProfile(displayName: _pseudoController.text);
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const PlaylistPage()), // Redirection vers PlaylistPage
+        MaterialPageRoute(
+            builder: (context) =>
+                const PlaylistPage()), // Redirection vers PlaylistPage
       );
     } catch (e) {
       print(e);
@@ -159,7 +169,8 @@ class _LoginPageState extends State<LoginPage> {
                       'Login',
                       style: TextStyle(
                         fontSize: 18,
-                        fontWeight: isLogin ? FontWeight.bold : FontWeight.normal,
+                        fontWeight:
+                            isLogin ? FontWeight.bold : FontWeight.normal,
                         color: isLogin ? Colors.black : Colors.grey,
                       ),
                     ),
@@ -174,7 +185,8 @@ class _LoginPageState extends State<LoginPage> {
                       'Register',
                       style: TextStyle(
                         fontSize: 18,
-                        fontWeight: !isLogin ? FontWeight.bold : FontWeight.normal,
+                        fontWeight:
+                            !isLogin ? FontWeight.bold : FontWeight.normal,
                         color: !isLogin ? Colors.black : Colors.grey,
                       ),
                     ),
@@ -183,13 +195,29 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 20),
 
+              // Champ Pseudo (si inscription)
+              if (!isLogin) const SizedBox(height: 10),
+              if (!isLogin)
+                TextField(
+                  controller: _pseudoController, // Nouveau champ pseudo
+                  style:
+                      const TextStyle(color: Colors.black), // Couleur du texte
+                  decoration: InputDecoration(
+                    labelText: 'Pseudo',
+                    labelStyle: const TextStyle(
+                        color: Colors.black), // Couleur de l'étiquette
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+
               // Champ Email
               TextField(
                 controller: _emailController,
                 style: const TextStyle(color: Colors.black), // Couleur du texte
                 decoration: InputDecoration(
                   labelText: 'Email',
-                  labelStyle: const TextStyle(color: Colors.black), // Couleur de l'étiquette
+                  labelStyle: const TextStyle(
+                      color: Colors.black), // Couleur de l'étiquette
                   border: const OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.emailAddress,
@@ -203,7 +231,8 @@ class _LoginPageState extends State<LoginPage> {
                 style: const TextStyle(color: Colors.black), // Couleur du texte
                 decoration: InputDecoration(
                   labelText: 'Password',
-                  labelStyle: const TextStyle(color: Colors.black), // Couleur de l'étiquette
+                  labelStyle: const TextStyle(
+                      color: Colors.black), // Couleur de l'étiquette
                   border: const OutlineInputBorder(),
                 ),
                 obscureText: true,
@@ -215,26 +244,15 @@ class _LoginPageState extends State<LoginPage> {
               if (!isLogin)
                 TextField(
                   controller: _confirmPasswordController,
-                  style: const TextStyle(color: Colors.black), // Couleur du texte
+                  style:
+                      const TextStyle(color: Colors.black), // Couleur du texte
                   decoration: InputDecoration(
                     labelText: 'Confirm Password',
-                    labelStyle: const TextStyle(color: Colors.black), // Couleur de l'étiquette
+                    labelStyle: const TextStyle(
+                        color: Colors.black), // Couleur de l'étiquette
                     border: const OutlineInputBorder(),
                   ),
                   obscureText: true,
-                ),
-
-              // Champ Pseudo (si inscription)
-              if (!isLogin) const SizedBox(height: 10),
-              if (!isLogin)
-                TextField(
-                  controller: _pseudoController,  // Nouveau champ pseudo
-                  style: const TextStyle(color: Colors.black), // Couleur du texte
-                  decoration: InputDecoration(
-                    labelText: 'Pseudo',
-                    labelStyle: const TextStyle(color: Colors.black), // Couleur de l'étiquette
-                    border: const OutlineInputBorder(),
-                  ),
                 ),
 
               const SizedBox(height: 20),

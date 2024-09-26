@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.music"
+    namespace = "com.example.music" // Assurez-vous que le namespace est défini ici
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -20,11 +20,12 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.music"
+        applicationId = "com.example.music" // ID de l'application
         minSdk = 23  // Définissez explicitement minSdk à 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Pas besoin d'une ligne namespace ici car elle est déjà définie au-dessus
     }
 
     buildTypes {
@@ -39,5 +40,11 @@ flutter {
 }
 
 dependencies {
-    implementation platform('com.google.firebase:firebase-bom:33.3.0')
+    implementation platform('com.google.firebase:firebase-bom:33.3.0') // Firebase BOM
+    implementation 'com.google.android.gms:play-services-auth:20.2.0' // Dépendance pour l'authentification
+    implementation 'com.google.firebase:firebase-auth:23.0.0' // Dépendance pour Firebase Auth
+    implementation 'com.example:audioplayers:latest_version' // Ajoutez la dépendance audioplayers ici
+    implementation 'com.example:audioplayers:0.20.1' // Remplacez par la version exacte
+
+    // Ajoutez d'autres dépendances nécessaires si besoin
 }

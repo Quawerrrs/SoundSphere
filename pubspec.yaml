@@ -19,6 +19,12 @@ dependencies:
   firebase_auth: ^5.3.0 # Version compatible pour l'authentification
   cloud_firestore: ^5.4.2 # Version compatible pour Firestore
   google_sign_in: ^6.2.1
+  audioplayers: ^0.20.1
+  http: ^0.13.4
+  url_launcher: ^6.0.20
+  youtube_explode_dart: ^1.10.0
+  youtube_api: ^1.0.4
+  youtube_player_flutter: ^8.1.0
 
 dev_dependencies:
   flutter_test:
