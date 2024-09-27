@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart'; // Importez firebase_core
 import 'package:firebase_auth/firebase_auth.dart'; // Importez firebase_auth
 import 'package:cloud_firestore/cloud_firestore.dart'; // Importez Firestore
-import 'package:firebase_storage/firebase_storage.dart'; // Importez Firebase Storage
-import 'package:image_picker/image_picker.dart'; // Importez Image Picker
 import './pages/PlaylistPage.dart'; // Remplacez par le chemin correct vers PlaylistPage
 
 // Remplacez par votre configuration Firebase
@@ -20,8 +18,13 @@ Future<void> main() async {
   WidgetsFlutterBinding
       .ensureInitialized(); // Assurez-vous que Flutter est initialisé
 
-  // Initialisez Firebase
-  await Firebase.initializeApp(options: firebaseOptions);
+  // Vérifiez si Firebase a déjà été initialisé
+  try {
+    await Firebase.initializeApp(
+        options: firebaseOptions); // Initialisez Firebase avec les options
+  } catch (e) {
+    print("Firebase déjà initialisé: $e"); // Gérer l'erreur
+  }
 
   runApp(const MyApp());
 }
@@ -54,8 +57,6 @@ class _LoginPageState extends State<LoginPage> {
   final _confirmPasswordController = TextEditingController();
   final _pseudoController =
       TextEditingController(); // Contrôleur pour le pseudo
-  final ImagePicker _picker = ImagePicker();
-  XFile? _image; // Variable pour stocker l'image sélectionnée
   bool isLogin = true;
 
   @override
@@ -114,14 +115,6 @@ class _LoginPageState extends State<LoginPage> {
         'createdAt': Timestamp.now(), // Ajouter un timestamp pour la création
       });
 
-      // Téléchargez l'image dans Firebase Storage si elle a été sélectionnée
-      if (_image != null) {
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('profile_images/${userCredential.user!.uid}');
-        await storageRef.putFile(File(_image!.path));
-      }
-
       // Mettre à jour le displayName de l'utilisateur
       await userCredential.user!
           .updateProfile(displayName: _pseudoController.text);
@@ -138,14 +131,6 @@ class _LoginPageState extends State<LoginPage> {
         SnackBar(content: Text("Erreur d'inscription : $e")),
       );
     }
-  }
-
-  Future<void> _pickImage() async {
-    // Ouvrir la galerie pour choisir une image
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    setState(() {
-      _image = pickedFile; // Stocker l'image sélectionnée
-    });
   }
 
   @override
@@ -270,13 +255,6 @@ class _LoginPageState extends State<LoginPage> {
                   obscureText: true,
                 ),
 
-              // Bouton pour choisir une image de profil (si inscription)
-              if (!isLogin)
-                ElevatedButton(
-                  onPressed: _pickImage,
-                  child: Text('Choisir une image de profil'),
-                ),
-
               const SizedBox(height: 20),
 
               // Bouton Se connecter / S'inscrire
@@ -299,3 +277,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
+//test 
+//test 
+//test 

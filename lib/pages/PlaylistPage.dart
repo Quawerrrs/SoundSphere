@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Importez Firestore pour accéder aux données de l'utilisateur
 import 'ProfilePage.dart';
 import 'MembersPage.dart';
 
@@ -30,6 +31,33 @@ class PlaylistPage extends StatefulWidget {
 
 class _PlaylistPageState extends State<PlaylistPage> {
   final User? user = FirebaseAuth.instance.currentUser;
+  String? profileImageUrl; // Variable pour stocker l'URL de l'image de profil
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProfileImage(); // Récupérer l'image de profil lors de l'initialisation
+  }
+
+  // Fonction pour récupérer l'image de profil de Firestore
+  Future<void> _fetchProfileImage() async {
+    if (user != null) {
+      try {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user!.uid)
+            .get();
+
+        if (userDoc.exists) {
+          setState(() {
+            profileImageUrl = userDoc['photoURL'] ?? '';
+          });
+        }
+      } catch (e) {
+        print('Erreur lors de la récupération de l\'image de profil : $e');
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,11 +72,11 @@ class _PlaylistPageState extends State<PlaylistPage> {
             ),
           ),
           child: Align(
-            alignment: Alignment.topLeft, // Aligne le bouton en haut à gauche
+            alignment: Alignment.topLeft,
             child: IconButton(
               icon: const Icon(Icons.menu, color: Colors.white, size: 32),
               onPressed: () {
-                Scaffold.of(context).openDrawer(); // Ouvrir le menu
+                Scaffold.of(context).openDrawer();
               },
             ),
           ),
@@ -65,11 +93,13 @@ class _PlaylistPageState extends State<PlaylistPage> {
               ),
               child: Column(
                 children: [
-                  const CircleAvatar(
+                  // Affichez l'image de profil ou une image par défaut si aucune n'est disponible
+                  CircleAvatar(
                     radius: 40,
-                    backgroundImage: NetworkImage(
-                      'https://via.placeholder.com/150',
-                    ),
+                    backgroundImage: profileImageUrl != null &&
+                            profileImageUrl!.isNotEmpty
+                        ? NetworkImage(profileImageUrl!)
+                        : const NetworkImage('https://via.placeholder.com/150'),
                   ),
                   const SizedBox(height: 8),
                   Flexible(

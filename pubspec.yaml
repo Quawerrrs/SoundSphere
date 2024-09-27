@@ -32,6 +32,14 @@ dev_dependencies:
 
   # Le package "flutter_lints" contient un ensemble de règles de lint recommandées
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.13.1 # Vérifiez la dernière version
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/soundsphere.png" # Chemin vers votre icône
+  adaptive_icon_background: "#FFFFFF" # Couleur de fond pour les icônes adaptatives Android
+  adaptive_icon_foreground: "assets/icons/soundsphere.png" # Chemin vers l'icône de premier plan
 
 flutter:
   uses-material-design: true
