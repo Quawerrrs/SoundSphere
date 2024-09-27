@@ -12,12 +12,18 @@ class _MembersPageState extends State<MembersPage> {
   final TextEditingController _searchController = TextEditingController();
   List<DocumentSnapshot> members = [];
   List<DocumentSnapshot> filteredMembers = [];
-  bool isLoading = true; // Indicateur de chargement
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchMembers(); // Récupérer les utilisateurs depuis Firestore
+    _fetchMembers(); // Initialiser la récupération des utilisateurs
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _fetchMembers(); // Recharger les utilisateurs chaque fois que la page est affichée
   }
 
   // Utiliser un stream pour écouter les changements en temps réel dans Firestore
@@ -36,12 +42,12 @@ class _MembersPageState extends State<MembersPage> {
 
         setState(() {
           members = snapshot.docs;
-          // Filtrer uniquement les utilisateurs ayant un champ 'email'
+          // Filtrer uniquement les utilisateurs ayant un champ 'pseudo'
           filteredMembers = members.where((member) {
-            final data = member.data(); // Récupérer les données
+            final data = member.data();
             return data != null &&
                 data is Map<String, dynamic> &&
-                data.containsKey('email');
+                data.containsKey('pseudo');
           }).toList();
           isLoading = false; // Arrêter l'indicateur de chargement
         });
@@ -63,8 +69,8 @@ class _MembersPageState extends State<MembersPage> {
       final data = member.data();
       return data != null &&
           data is Map<String, dynamic> &&
-          data.containsKey('email') &&
-          data['email'].toString().toLowerCase().contains(query.toLowerCase());
+          data.containsKey('pseudo') &&
+          data['pseudo'].toString().toLowerCase().contains(query.toLowerCase());
     }).toList();
     setState(() {
       filteredMembers = filteredList;
@@ -79,6 +85,13 @@ class _MembersPageState extends State<MembersPage> {
       appBar: AppBar(
         title: const Text('Utilisateurs'),
         backgroundColor: Colors.black,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed:
+                _fetchMembers, // Ajoute un bouton pour rafraîchir manuellement
+          )
+        ],
       ),
       body: Column(
         children: [
@@ -87,7 +100,7 @@ class _MembersPageState extends State<MembersPage> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Rechercher par email...',
+                hintText: 'Rechercher par pseudo...',
                 prefixIcon: const Icon(Icons.search, color: Colors.white),
                 filled: true,
                 fillColor: Colors.grey[800],
@@ -122,15 +135,14 @@ class _MembersPageState extends State<MembersPage> {
                                 vertical: 8, horizontal: 16),
                             child: ListTile(
                               title: Text(
-                                // Afficher uniquement l'email de l'utilisateur
-                                data[
-                                    'email'], // Utilisation de l'email après conversion
+                                // Afficher le pseudo de l'utilisateur
+                                data['pseudo'] ?? 'Pseudo non disponible',
                                 style: const TextStyle(color: Colors.white),
                               ),
                               onTap: () {
                                 // Action lors du clic sur un utilisateur
                                 print(
-                                    'Utilisateur sélectionné avec email : ${data['email']}');
+                                    'Utilisateur sélectionné avec pseudo : ${data['pseudo']}');
                               },
                             ),
                           );
