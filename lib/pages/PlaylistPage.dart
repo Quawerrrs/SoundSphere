@@ -63,7 +63,6 @@ class _PlaylistPageState extends State<PlaylistPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        // Utilisation de SafeArea pour éviter le problème d'affichage
         child: Builder(
           builder: (context) => Container(
             decoration: BoxDecoration(
@@ -73,14 +72,66 @@ class _PlaylistPageState extends State<PlaylistPage> {
                 end: Alignment.bottomCenter,
               ),
             ),
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: IconButton(
-                icon: const Icon(Icons.menu, color: Colors.white, size: 32),
-                onPressed: () {
-                  Scaffold.of(context).openDrawer();
-                },
-              ),
+            child: Column(
+              children: [
+                // Row pour les trois boutons ronds "Accueil", "Rechercher", "Vos Playlists"
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // Bouton Accueil
+                      IconButton(
+                        icon: const Icon(Icons.home, color: Colors.white),
+                        iconSize: 40,
+                        onPressed: () {
+                          // Action pour le bouton Accueil
+                          Navigator.popUntil(context, (route) => route.isFirst);
+                        },
+                        tooltip: 'Accueil',
+                      ),
+                      // Bouton Rechercher
+                      IconButton(
+                        icon: const Icon(Icons.search, color: Colors.white),
+                        iconSize: 40,
+                        onPressed: () {
+                          // Action pour le bouton Rechercher
+                          print('Rechercher');
+                        },
+                        tooltip: 'Rechercher',
+                      ),
+                      // Bouton Vos Playlists
+                      IconButton(
+                        icon: const Icon(Icons.library_music, color: Colors.white),
+                        iconSize: 40,
+                        onPressed: () {
+                          // Action pour le bouton "Vos Playlists"
+                          print('Vos Playlists');
+                        },
+                        tooltip: 'Vos Playlists',
+                      ),
+                    ],
+                  ),
+                ),
+                // Alignement pour le bouton de menu (avec l'image de profil)
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: GestureDetector(
+                      onTap: () {
+                        Scaffold.of(context).openDrawer();
+                      },
+                      child: CircleAvatar(
+                        radius: 25,
+                        backgroundImage: profileImageUrl != null && profileImageUrl!.isNotEmpty
+                            ? NetworkImage(profileImageUrl!)
+                            : const NetworkImage('https://via.placeholder.com/150'),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
