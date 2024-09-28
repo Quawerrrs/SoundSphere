@@ -1,31 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart'; // Importez firebase_core
-import 'package:firebase_auth/firebase_auth.dart'; // Importez firebase_auth
-import 'package:cloud_firestore/cloud_firestore.dart'; // Importez Firestore
-import './pages/PlaylistPage.dart'; // Remplacez par le chemin correct vers PlaylistPage
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import './pages/PlaylistPage.dart';
 
 // Remplacez par votre configuration Firebase
 const firebaseOptions = FirebaseOptions(
-  apiKey: "AIzaSyDDt6Y6coCexAJOnVgrlPz_tpC8uqi_pIc", // Clé API
-  appId: "1:661358917252:android:49a297801ccd930d5934d1", // ID de l'application
-  messagingSenderId: "661358917252", // ID de l'expéditeur
-  projectId: "music-k1zust", // ID du projet
-  authDomain: "music-k1zust.firebaseapp.com", // Domaine d'authentification
-  storageBucket: "music-k1zust.appspot.com", // Bucket de stockage
+  apiKey: "AIzaSyDDt6Y6coCexAJOnVgrlPz_tpC8uqi_pIc",
+  appId: "1:661358917252:android:49a297801ccd930d5934d1",
+  messagingSenderId: "661358917252",
+  projectId: "music-k1zust",
+  authDomain: "music-k1zust.firebaseapp.com",
+  storageBucket: "music-k1zust.appspot.com",
 );
 
 Future<void> main() async {
-  WidgetsFlutterBinding
-      .ensureInitialized(); // Assurez-vous que Flutter est initialisé
-
-  // Vérifiez si Firebase a déjà été initialisé
+  WidgetsFlutterBinding.ensureInitialized();
   try {
-    await Firebase.initializeApp(
-        options: firebaseOptions); // Initialisez Firebase avec les options
+    await Firebase.initializeApp(options: firebaseOptions);
   } catch (e) {
-    print("Firebase déjà initialisé: $e"); // Gérer l'erreur
+    print("Firebase déjà initialisé: $e");
   }
-
   runApp(const MyApp());
 }
 
@@ -37,8 +32,21 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'SoundSphere',
       theme: ThemeData.dark(),
-      home: const LoginPage(), // Page d'accueil
-      debugShowCheckedModeBanner: false, // Enlève le bandeau de démo
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          } else if (snapshot.hasData) {
+            return const PlaylistPage();
+          } else {
+            return const LoginPage();
+          }
+        },
+      ),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -55,30 +63,32 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _pseudoController =
-      TextEditingController(); // Contrôleur pour le pseudo
+  final _pseudoController = TextEditingController();
   bool isLogin = true;
+  bool stayLoggedIn = false; // Variable pour gérer l'état de la case à cocher
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _pseudoController.dispose(); // Dispose du contrôleur pseudo
+    _pseudoController.dispose();
     super.dispose();
   }
 
   Future<void> _login() async {
     try {
+      if (stayLoggedIn) {
+        // Si l'utilisateur souhaite rester connecté, utiliser la persistance locale
+        await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+      } else {
+        // Sinon, n'utiliser la persistance que pour la session en cours
+        await FirebaseAuth.instance.setPersistence(Persistence.NONE);
+      }
+
       await _auth.signInWithEmailAndPassword(
         email: _emailController.text,
         password: _passwordController.text,
-      );
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-            builder: (context) =>
-                const PlaylistPage()), // Redirection vers PlaylistPage
       );
     } catch (e) {
       print(e);
@@ -97,34 +107,23 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     try {
-      // Créer l'utilisateur avec Firebase Auth
       UserCredential userCredential =
           await _auth.createUserWithEmailAndPassword(
         email: _emailController.text,
         password: _passwordController.text,
       );
 
-      // Enregistrer le pseudo et d'autres informations dans Firestore
       await FirebaseFirestore.instance
-          .collection('users') // Collection "users" dans Firestore
-          .doc(userCredential.user
-              ?.uid) // Utiliser l'UID de l'utilisateur comme ID du document
+          .collection('users')
+          .doc(userCredential.user?.uid)
           .set({
         'email': _emailController.text,
-        'pseudo': _pseudoController.text, // Stocker le pseudo dans Firestore
-        'createdAt': Timestamp.now(), // Ajouter un timestamp pour la création
+        'pseudo': _pseudoController.text,
+        'createdAt': Timestamp.now(),
       });
 
-      // Mettre à jour le displayName de l'utilisateur
       await userCredential.user!
           .updateProfile(displayName: _pseudoController.text);
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-            builder: (context) =>
-                const PlaylistPage()), // Redirection vers PlaylistPage
-      );
     } catch (e) {
       print(e);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -155,7 +154,6 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Toggle entre Login et Register
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
@@ -195,29 +193,24 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 20),
 
-              // Champ Pseudo (si inscription)
               if (!isLogin) const SizedBox(height: 10),
               if (!isLogin)
                 TextField(
-                  controller: _pseudoController, // Nouveau champ pseudo
-                  style:
-                      const TextStyle(color: Colors.black), // Couleur du texte
+                  controller: _pseudoController,
+                  style: const TextStyle(color: Colors.black),
                   decoration: InputDecoration(
                     labelText: 'Pseudo',
-                    labelStyle: const TextStyle(
-                        color: Colors.black), // Couleur de l'étiquette
+                    labelStyle: const TextStyle(color: Colors.black),
                     border: const OutlineInputBorder(),
                   ),
                 ),
 
-              // Champ Email
               TextField(
                 controller: _emailController,
-                style: const TextStyle(color: Colors.black), // Couleur du texte
+                style: const TextStyle(color: Colors.black),
                 decoration: InputDecoration(
                   labelText: 'Email',
-                  labelStyle: const TextStyle(
-                      color: Colors.black), // Couleur de l'étiquette
+                  labelStyle: const TextStyle(color: Colors.black),
                   border: const OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.emailAddress,
@@ -225,14 +218,12 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 10),
 
-              // Champ Password
               TextField(
                 controller: _passwordController,
-                style: const TextStyle(color: Colors.black), // Couleur du texte
+                style: const TextStyle(color: Colors.black),
                 decoration: InputDecoration(
                   labelText: 'Password',
-                  labelStyle: const TextStyle(
-                      color: Colors.black), // Couleur de l'étiquette
+                  labelStyle: const TextStyle(color: Colors.black),
                   border: const OutlineInputBorder(),
                 ),
                 obscureText: true,
@@ -240,16 +231,13 @@ class _LoginPageState extends State<LoginPage> {
 
               if (!isLogin) const SizedBox(height: 10),
 
-              // Champ Confirm Password (si inscription)
               if (!isLogin)
                 TextField(
                   controller: _confirmPasswordController,
-                  style:
-                      const TextStyle(color: Colors.black), // Couleur du texte
+                  style: const TextStyle(color: Colors.black),
                   decoration: InputDecoration(
                     labelText: 'Confirm Password',
-                    labelStyle: const TextStyle(
-                        color: Colors.black), // Couleur de l'étiquette
+                    labelStyle: const TextStyle(color: Colors.black),
                     border: const OutlineInputBorder(),
                   ),
                   obscureText: true,
@@ -257,7 +245,24 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 20),
 
-              // Bouton Se connecter / S'inscrire
+              // Checkbox pour "Rester connecté"
+              Row(
+                children: [
+                  Checkbox(
+                    value: stayLoggedIn,
+                    onChanged: (bool? value) {
+                      setState(() {
+                        stayLoggedIn = value ?? false;
+                      });
+                    },
+                  ),
+                  const Text(
+                    'Rester connecté',
+                    style: TextStyle(color: Colors.black),
+                  ),
+                ],
+              ),
+
               ElevatedButton(
                 onPressed: () {
                   if (isLogin) {
@@ -277,6 +282,3 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
-//test 
-//test 
-//test 
