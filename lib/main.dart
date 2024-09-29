@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import './pages/PlaylistPage.dart';
+import 'pages/AccueilPage.dart';
 
 // Remplacez par votre configuration Firebase
 const firebaseOptions = FirebaseOptions(
@@ -40,7 +40,7 @@ class MyApp extends StatelessWidget {
               body: Center(child: CircularProgressIndicator()),
             );
           } else if (snapshot.hasData) {
-            return const PlaylistPage();
+            return const AccueilPage();
           } else {
             return const LoginPage();
           }
