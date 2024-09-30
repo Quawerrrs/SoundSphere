@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'Playlist.dart'; // Import de la page PlaylistPage
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -11,8 +12,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final User? user = FirebaseAuth.instance.currentUser;
-  List<String> playlists =
-      []; // Liste des playlists récupérées depuis Firestore
+  List<String> playlists = []; // Liste des playlists récupérées depuis Firestore
 
   @override
   void initState() {
@@ -54,10 +54,10 @@ class _HomePageState extends State<HomePage> {
       body: Padding(
         padding: const EdgeInsets.all(8.0),
         child: GridView.builder(
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2, // Nombre de colonnes
-            crossAxisSpacing: 8.0, // Espacement horizontal entre les colonnes
-            mainAxisSpacing: 8.0, // Espacement vertical entre les lignes
+            crossAxisSpacing: 16.0, // Plus d'espacement horizontal
+            mainAxisSpacing: 16.0, // Plus d'espacement vertical
             childAspectRatio: 3 / 1, // Ratio largeur/hauteur pour les cellules
           ),
           itemCount: allPlaylists.length.clamp(0, 6), // Maximum de 6 éléments
@@ -65,23 +65,25 @@ class _HomePageState extends State<HomePage> {
             String playlistTitle = allPlaylists[index];
             return GestureDetector(
               onTap: () {
-                // Action à effectuer lors du clic sur une playlist
-                print("Clicked on $playlistTitle");
+                // Navigation vers la page PlaylistPage lors du clic
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => Playlist(playlistTitle: playlistTitle),
+                  ),
+                );
               },
               child: Container(
                 height: 60, // Hauteur du bandeau fixée à 60px
                 decoration: BoxDecoration(
-                  color: index == 0
-                      ? Colors.blueAccent
-                      : Colors
-                          .greenAccent, // Couleur différente pour "Titres likés"
-                  borderRadius: BorderRadius.circular(4), // Bordure arrondie
+                  color: const Color.fromARGB(255, 95, 95, 95), // Couleur gris foncé
+                  borderRadius: BorderRadius.circular(16), // Bords plus arrondis
                 ),
                 child: Center(
                   child: Text(
                     playlistTitle,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: Colors.white, // Texte en blanc
                       fontSize: 14, // Taille du texte ajustée
                       fontWeight: FontWeight.bold,
                     ),

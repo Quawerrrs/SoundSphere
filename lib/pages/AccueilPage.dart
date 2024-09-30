@@ -91,7 +91,7 @@ class _AccueilPageState extends State<AccueilPage> {
               children: [
                 Container(
                   height: 80,
-                  color: Colors.black, // Fond noir en haut de l'écran
+                  color: const Color.fromARGB(255, 78, 77, 77), // Fond noir en haut de l'écran
                 ),
                 Column(
                   children: [
