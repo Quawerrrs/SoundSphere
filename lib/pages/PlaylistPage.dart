@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'ModifPlaylist.dart'; // Assurez-vous d'importer la page ModifPlaylist
 
 class PlaylistPage extends StatefulWidget {
   @override
@@ -91,6 +92,18 @@ class _PlaylistPageState extends State<PlaylistPage> {
     }
   }
 
+  // Ouvre la page ModifPlaylist pour renommer ou supprimer la playlist
+  void _openPlaylistOptions(String playlistName) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ModifPlaylist(
+          playlistName: playlistName,
+          onPlaylistUpdated: _fetchPlaylists, // Passer la fonction de mise à jour
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -101,8 +114,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
         actions: [
           IconButton(
             icon: Icon(Icons.add),
-            onPressed:
-                _createPlaylist, // Appel de la fonction pour créer une playlist
+            onPressed: _createPlaylist,
             tooltip: 'Créer une Playlist',
           ),
         ],
@@ -112,12 +124,25 @@ class _PlaylistPageState extends State<PlaylistPage> {
           : ListView.builder(
               itemCount: playlists.length,
               itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text(playlists[index]),
-                  onTap: () {
-                    // Action à effectuer lors de la sélection d'une playlist
-                    print("Playlist sélectionnée : ${playlists[index]}");
-                  },
+                final color = index % 2 == 0
+                    ? Colors.grey[400]
+                    : Colors.grey[600];
+
+                return Container(
+                  color: color,
+                  child: ListTile(
+                    title: Text(
+                      playlists[index],
+                      style: TextStyle(color: Colors.black),
+                    ),
+                    trailing: IconButton(
+                      icon: Icon(Icons.more_vert),
+                      onPressed: () => _openPlaylistOptions(playlists[index]),
+                    ),
+                    onTap: () {
+                      print("Ouverture de la playlist : ${playlists[index]}");
+                    },
+                  ),
                 );
               },
             ),
