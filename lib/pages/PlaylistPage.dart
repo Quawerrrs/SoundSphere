@@ -95,7 +95,9 @@ class _PlaylistPageState extends State<PlaylistPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Playlists'),
+        title: Text('Vos Playlists'),
+        centerTitle: true,
+        backgroundColor: Colors.white30,
         actions: [
           IconButton(
             icon: Icon(Icons.add),

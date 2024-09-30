@@ -1,65 +1,99 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
 
   @override
+  _HomePageState createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  final User? user = FirebaseAuth.instance.currentUser;
+  List<String> playlists =
+      []; // Liste des playlists récupérées depuis Firestore
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPlaylists(); // Récupérer les playlists au chargement de la page
+  }
+
+  // Fonction pour récupérer les playlists de Firestore
+  Future<void> _fetchPlaylists() async {
+    if (user != null) {
+      try {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user!.uid)
+            .get();
+
+        if (userDoc.exists) {
+          List<dynamic> userPlaylists = userDoc['playlists'] ?? [];
+          setState(() {
+            // Limiter les playlists à un maximum de 6
+            playlists = List<String>.from(userPlaylists).take(6).toList();
+          });
+        }
+      } catch (e) {
+        print('Erreur lors de la récupération des playlists : $e');
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Une seule playlist intitulée "Titres likés"
-    final String playlistTitle = "Titres likés";
+    // Une playlist fixe intitulée "Titres likés"
+    final String playlistLiked = "Titres likés";
+
+    // Ajouter la playlist "Titres likés" en première position
+    final List<String> allPlaylists = [playlistLiked, ...playlists];
 
     return Scaffold(
       body: Padding(
         padding: const EdgeInsets.all(8.0),
-        child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start, // Aligne les éléments à gauche
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  flex: 1, // Chaque container occupe 50% de la largeur
-                  child: GestureDetector(
-                    onTap: () {
-                      // Action à effectuer lors du clic sur la playlist
-                      print("Clicked on $playlistTitle");
-                    },
-                    child: Container(
-                      height: 60, // Hauteur du bandeau fixée à 60px
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 8.0), // Espacement entre les bandeaux
-                      decoration: BoxDecoration(
-                        color: Colors.blueAccent, // Couleur du bandeau
-                        borderRadius:
-                            BorderRadius.circular(4), // Bordure arrondie
-                      ),
-                      child: Center(
-                        child: Text(
-                          playlistTitle,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14, // Taille du texte ajustée
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
+        child: GridView.builder(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2, // Nombre de colonnes
+            crossAxisSpacing: 8.0, // Espacement horizontal entre les colonnes
+            mainAxisSpacing: 8.0, // Espacement vertical entre les lignes
+            childAspectRatio: 3 / 1, // Ratio largeur/hauteur pour les cellules
+          ),
+          itemCount: allPlaylists.length.clamp(0, 6), // Maximum de 6 éléments
+          itemBuilder: (context, index) {
+            String playlistTitle = allPlaylists[index];
+            return GestureDetector(
+              onTap: () {
+                // Action à effectuer lors du clic sur une playlist
+                print("Clicked on $playlistTitle");
+              },
+              child: Container(
+                height: 60, // Hauteur du bandeau fixée à 60px
+                decoration: BoxDecoration(
+                  color: index == 0
+                      ? Colors.blueAccent
+                      : Colors
+                          .greenAccent, // Couleur différente pour "Titres likés"
+                  borderRadius: BorderRadius.circular(4), // Bordure arrondie
+                ),
+                child: Center(
+                  child: Text(
+                    playlistTitle,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14, // Taille du texte ajustée
+                      fontWeight: FontWeight.bold,
                     ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-                // Deuxième conteneur vide, prêt pour une nouvelle playlist
-                Expanded(
-                  flex: 1,
-                  child:
-                      Container(), // Un espace vide qui occupe 50% de la largeur
-                ),
-              ],
-            ),
-          ],
+              ),
+            );
+          },
         ),
       ),
       backgroundColor: Colors.transparent, // Fond transparent
-      // Utilisation de transparent dans l'élément Scaffold
     );
   }
 }

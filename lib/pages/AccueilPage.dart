@@ -82,7 +82,7 @@ class _AccueilPageState extends State<AccueilPage> {
           builder: (context) => Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF00008B), Colors.black],
+                colors: [Colors.black, Colors.black87], // Dégradé noir
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
@@ -91,7 +91,7 @@ class _AccueilPageState extends State<AccueilPage> {
               children: [
                 Container(
                   height: 80,
-                  color: Colors.black,
+                  color: Colors.black, // Fond noir en haut de l'écran
                 ),
                 Column(
                   children: [
@@ -154,13 +154,13 @@ class _AccueilPageState extends State<AccueilPage> {
         ),
       ),
       drawer: Drawer(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.black, // Fond noir pour le Drawer
         child: ListView(
           padding: const EdgeInsets.all(16.0),
           children: [
             DrawerHeader(
               decoration: const BoxDecoration(
-                color: Colors.blueAccent,
+                color: Colors.blueAccent, // Fond bleu pour le header du Drawer
               ),
               child: Column(
                 children: [
