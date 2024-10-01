@@ -15,6 +15,15 @@ class _ProfilePageState extends State<ProfilePage> {
       FirebaseAuth.instance.currentUser; // Récupérer l'utilisateur
   final ImagePicker _picker = ImagePicker();
   File? _imageFile; // Fichier pour stocker l'image sélectionnée
+  final TextEditingController _pseudoController =
+      TextEditingController(); // Contrôleur pour le pseudo
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialiser le champ de pseudo avec le pseudo actuel
+    _pseudoController.text = user?.displayName ?? '';
+  }
 
   // Fonction pour choisir une image depuis la galerie
   Future<void> _pickImage() async {
@@ -76,62 +85,137 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  // Fonction pour mettre à jour le pseudo
+  Future<void> _updatePseudo() async {
+    if (user == null) return;
+
+    try {
+      // Mettre à jour le pseudo dans Firebase Authentication
+      await user!.updateProfile(displayName: _pseudoController.text);
+
+      // Mettre à jour le document de l'utilisateur dans Firestore avec le nouveau pseudo
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .update({'displayName': _pseudoController.text});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Pseudo mis à jour avec succès')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur lors de la mise à jour du pseudo : $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mon Profil'),
-        backgroundColor: Colors.black,
-      ),
+      backgroundColor: Colors.black,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Affichage de l'image de profil actuelle ou de l'image sélectionnée
-            CircleAvatar(
-              radius: 50,
-              backgroundImage: _imageFile != null
-                  ? FileImage(_imageFile!)
-                  : NetworkImage(
-                      user?.photoURL ?? 'https://via.placeholder.com/150',
-                    ) as ImageProvider,
-            ),
-            const SizedBox(height: 16),
-            // Bouton pour choisir une image depuis la galerie
-            ElevatedButton(
-              onPressed: _pickImage,
-              child: const Text('Choisir une nouvelle image de profil'),
-            ),
-            const SizedBox(height: 16),
-            // Bouton pour télécharger l'image si une nouvelle image est sélectionnée
-            if (_imageFile != null)
-              ElevatedButton(
-                onPressed: _uploadImage,
-                child: const Text('Enregistrer l\'image de profil'),
+        child: Container(
+          padding: const EdgeInsets.all(20.0),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blueAccent.withOpacity(0.5),
+                blurRadius: 20.0,
+                spreadRadius: 5.0,
               ),
-            const SizedBox(height: 16),
-            // Afficher le pseudo (displayName) ou un message par défaut
-            Text(
-              user?.displayName ?? 'Pseudo non disponible',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            // Afficher l'email
-            Text(
-              user?.email ?? 'Email non disponible',
-              style: const TextStyle(fontSize: 18),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context); // Revenir à la page précédente
-              },
-              child: const Text('Retour'),
-            ),
-          ],
+            ],
+          ),
+          width: 300,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Affichage de l'image de profil actuelle ou de l'image sélectionnée
+              CircleAvatar(
+                radius: 50,
+                backgroundImage: _imageFile != null
+                    ? FileImage(_imageFile!)
+                    : NetworkImage(
+                        user?.photoURL ?? 'https://via.placeholder.com/150',
+                      ) as ImageProvider,
+              ),
+              const SizedBox(height: 16),
+              // Bouton pour choisir une image depuis la galerie
+              ElevatedButton(
+                style:
+                    ElevatedButton.styleFrom(backgroundColor: Colors.grey[300]),
+                onPressed: _pickImage,
+                child: const Text(
+                  'Choisir une nouvelle image de profil',
+                  style: TextStyle(color: Colors.black),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Bouton pour télécharger l'image si une nouvelle image est sélectionnée
+              if (_imageFile != null)
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[300]),
+                  onPressed: _uploadImage,
+                  child: const Text(
+                    'Enregistrer l\'image de profil',
+                    style: TextStyle(color: Colors.black),
+                  ),
+                ),
+              const SizedBox(height: 16),
+              // Champ pour modifier le pseudo
+              TextField(
+                controller: _pseudoController,
+                style: const TextStyle(color: Colors.black),
+                decoration: const InputDecoration(
+                  labelText: 'Modifier le Pseudo',
+                  labelStyle: TextStyle(color: Colors.black),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                style:
+                    ElevatedButton.styleFrom(backgroundColor: Colors.grey[300]),
+                onPressed: _updatePseudo,
+                child: const Text(
+                  'Enregistrer le Pseudo',
+                  style: TextStyle(color: Colors.black),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Afficher le pseudo (displayName) ou un message par défaut
+              Text(
+                user?.displayName ?? 'Pseudo non disponible',
+                style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black), // Texte en noir
+              ),
+              const SizedBox(height: 16),
+              // Afficher l'email
+              Text(
+                user?.email ?? 'Email non disponible',
+                style: const TextStyle(
+                    fontSize: 18, color: Colors.black), // Texte en noir
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                style:
+                    ElevatedButton.styleFrom(backgroundColor: Colors.grey[300]),
+                onPressed: () {
+                  Navigator.pop(context); // Revenir à la page précédente
+                },
+                child: const Text(
+                  'Retour',
+                  style: TextStyle(color: Colors.black),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
-//caca

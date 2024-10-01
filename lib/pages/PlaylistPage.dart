@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart'; // Importez firebase_storage
+import 'dart:typed_data'; // Importez dart:typed_data ici
 import 'ModifPlaylist.dart'; // Assurez-vous d'importer la page ModifPlaylist
 
 class PlaylistPage extends StatefulWidget {
@@ -75,10 +77,19 @@ class _PlaylistPageState extends State<PlaylistPage> {
     );
   }
 
-  // Fonction pour ajouter une playlist dans Firestore
+  // Fonction pour ajouter une playlist dans Firestore et créer un dossier pour les icônes
   Future<void> _addPlaylistToFirestore(String playlistName) async {
     if (user != null) {
       try {
+        // Créer un dossier pour la playlist dans Firebase Storage
+        final storageRef =
+            FirebaseStorage.instance.ref().child('playlists/$playlistName');
+
+        // Créer un dossier (une référence à un dossier) sans fichier
+        await storageRef.putData(Uint8List(
+            0)); // Utiliser un tableau d'octets vide pour créer le dossier
+
+        // Ajouter la playlist à Firestore
         await FirebaseFirestore.instance
             .collection('users')
             .doc(user!.uid)
@@ -98,7 +109,8 @@ class _PlaylistPageState extends State<PlaylistPage> {
       MaterialPageRoute(
         builder: (context) => ModifPlaylist(
           playlistName: playlistName,
-          onPlaylistUpdated: _fetchPlaylists, // Passer la fonction de mise à jour
+          onPlaylistUpdated:
+              _fetchPlaylists, // Passer la fonction de mise à jour
         ),
       ),
     );
@@ -124,9 +136,8 @@ class _PlaylistPageState extends State<PlaylistPage> {
           : ListView.builder(
               itemCount: playlists.length,
               itemBuilder: (context, index) {
-                final color = index % 2 == 0
-                    ? Colors.grey[400]
-                    : Colors.grey[600];
+                final color =
+                    index % 2 == 0 ? Colors.grey[400] : Colors.grey[600];
 
                 return Container(
                   color: color,

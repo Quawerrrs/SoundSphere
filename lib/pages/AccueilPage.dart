@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Importez Firestore pour accéder aux données de l'utilisateur
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'ProfilePage.dart';
 import 'MembersPage.dart';
-import 'HomePage.dart'; // Importez votre HomePage
+import 'HomePage.dart';
 import 'PlaylistPage.dart';
+import 'dart:async'; // Pour le timer
 
 void main() {
   runApp(const MyApp());
@@ -19,29 +20,14 @@ class MyApp extends StatelessWidget {
       title: 'SoundSphere',
       theme: ThemeData(
         brightness: Brightness.dark,
-        primaryColor: Colors.deepPurpleAccent,
-        scaffoldBackgroundColor: Colors.black87,
+        primarySwatch: Colors.deepPurple,
+        scaffoldBackgroundColor: Colors.black,
         textTheme: const TextTheme(
-          headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
-          headlineMedium: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.white),
+          headlineLarge: TextStyle(
+              fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
+          headlineMedium: TextStyle(
+              fontSize: 18, fontWeight: FontWeight.w500, color: Colors.white),
           bodyMedium: TextStyle(fontSize: 14, color: Colors.white70),
-
-        ),
-        appBarTheme: const AppBarTheme(
-          color: Colors.black87,
-          iconTheme: IconThemeData(color: Colors.white),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ButtonStyle(
-            backgroundColor: MaterialStateProperty.all(Colors.deepPurple), // Modern purple for buttons
-            foregroundColor: MaterialStateProperty.all(Colors.white),
-            textStyle: MaterialStateProperty.all(const TextStyle(fontSize: 16)),
-            shape: MaterialStateProperty.all(
-              RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20), // Rounded corners for buttons
-              ),
-            ),
-          ),
         ),
       ),
       home: const AccueilPage(),
@@ -58,19 +44,29 @@ class AccueilPage extends StatefulWidget {
 }
 
 class _AccueilPageState extends State<AccueilPage> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final User? user = FirebaseAuth.instance.currentUser;
   String? profileImageUrl;
   int _selectedPageIndex = 0;
+  double _animationValue = 0;
 
   final List<Widget> _pages = [
     HomePage(),
     PlaylistPage(),
   ];
 
+  late PageController _pageController;
+
   @override
   void initState() {
     super.initState();
     _fetchProfileImage();
+    _pageController = PageController(); // Initialize PageController
+    Timer.periodic(const Duration(seconds: 5), (timer) {
+      setState(() {
+        _animationValue = _animationValue == 0 ? 1 : 0;
+      });
+    });
   }
 
   Future<void> _fetchProfileImage() async {
@@ -96,16 +92,28 @@ class _AccueilPageState extends State<AccueilPage> {
     setState(() {
       _selectedPageIndex = index;
     });
+    _pageController.jumpToPage(index); // Change page in PageView
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose(); // Dispose of PageController
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       body: SafeArea(
-        child: Container(
-          decoration: const BoxDecoration(
+        child: AnimatedContainer(
+          duration: const Duration(seconds: 5),
+          curve: Curves.easeInOut,
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.black87, Colors.black54],
+              colors: _animationValue == 0
+                  ? [Color(0xFF1E1E30), Color(0xFF12121A)] // Dégradé initial
+                  : [Color(0xFF12121A), Color(0xFF1E1E30)], // Dégradé final
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
@@ -113,77 +121,111 @@ class _AccueilPageState extends State<AccueilPage> {
           child: Column(
             children: [
               Container(
-                height: 80,
-                color: Colors.black87,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          Scaffold.of(context).openDrawer();
-                        },
-                        child: CircleAvatar(
-                          radius: 30,
-                          backgroundImage: profileImageUrl != null && profileImageUrl!.isNotEmpty
-                              ? NetworkImage(profileImageUrl!)
-                              : const NetworkImage('https://via.placeholder.com/150'),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.home, color: Colors.white),
-                        iconSize: 40,
-                        onPressed: () {
-                          _onPageSelected(0);
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.search, color: Colors.white),
-                        iconSize: 40,
-                        onPressed: () {
-                          print('Rechercher');
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.library_music, color: Colors.white),
-                        iconSize: 40,
-                        onPressed: () {
-                          _onPageSelected(1);
-                        },
-                      ),
-                    ],
+                padding: const EdgeInsets.symmetric(
+                    vertical: 16.0, horizontal: 16.0),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.3),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(16.0),
+                    bottomRight: Radius.circular(16.0),
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.4),
+                      spreadRadius: 1,
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        _scaffoldKey.currentState?.openDrawer();
+                      },
+                      child: CircleAvatar(
+                        radius: 25,
+                        backgroundImage: profileImageUrl != null &&
+                                profileImageUrl!.isNotEmpty
+                            ? NetworkImage(profileImageUrl!)
+                            : const NetworkImage(
+                                'https://via.placeholder.com/150'),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.home, color: Colors.white),
+                      iconSize: 40,
+                      onPressed: () {
+                        _onPageSelected(0);
+                      },
+                      tooltip: 'Accueil',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.search, color: Colors.white),
+                      iconSize: 40,
+                      onPressed: () {
+                        print('Rechercher');
+                      },
+                      tooltip: 'Rechercher',
+                    ),
+                    IconButton(
+                      icon:
+                          const Icon(Icons.library_music, color: Colors.white),
+                      iconSize: 40,
+                      onPressed: () {
+                        _onPageSelected(1);
+                      },
+                      tooltip: 'Vos Playlists',
+                    ),
+                  ],
                 ),
               ),
               Expanded(
-                child: _pages[_selectedPageIndex],
+                child: PageView(
+                  controller: _pageController,
+                  onPageChanged: (index) {
+                    setState(() {
+                      _selectedPageIndex = index;
+                    });
+                  },
+                  children: _pages,
+                ),
               ),
             ],
           ),
         ),
       ),
       drawer: Drawer(
-        backgroundColor: Colors.black87,
+        backgroundColor: const Color(0xFF1E1E30),
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16.0),
           children: [
             DrawerHeader(
               decoration: const BoxDecoration(
-                color: Colors.deepPurpleAccent,
+                gradient: LinearGradient(
+                  colors: [Colors.deepPurple, Colors.purpleAccent],
+                ),
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   CircleAvatar(
                     radius: 40,
-                    backgroundImage: profileImageUrl != null && profileImageUrl!.isNotEmpty
+                    backgroundImage: profileImageUrl != null &&
+                            profileImageUrl!.isNotEmpty
                         ? NetworkImage(profileImageUrl!)
                         : const NetworkImage('https://via.placeholder.com/150'),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     user?.email ?? 'Email non disponible',
-                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),
@@ -194,40 +236,57 @@ class _AccueilPageState extends State<AccueilPage> {
                         MaterialPageRoute(builder: (context) => ProfilePage()),
                       );
                     },
-                    child: const Text('Voir votre Compte', style: TextStyle(color: Colors.white)),
+                    child: const Text(
+                      'Voir votre Compte',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 ],
               ),
             ),
-            _buildDrawerItem(Icons.playlist_play, 'Playlists', () {
-              _onPageSelected(1);
-              Navigator.pop(context);
-            }),
-            _buildDrawerItem(Icons.people, 'Membres', () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const MembersPage()),
-              );
-            }),
-            _buildDrawerItem(Icons.settings, 'Paramètres', () {
-              Navigator.pop(context);
-            }),
+            ListTile(
+              leading:
+                  const Icon(Icons.playlist_play_rounded, color: Colors.white),
+              title: const Text('Playlists',
+                  style: TextStyle(color: Colors.white)),
+              onTap: () {
+                _onPageSelected(1);
+                Navigator.pop(context);
+              },
+            ),
+            const Divider(color: Colors.white70),
+            ListTile(
+              leading: const Icon(Icons.people, color: Colors.white),
+              title:
+                  const Text('Membres', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const MembersPage()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings, color: Colors.white),
+              title: const Text('Paramètres',
+                  style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
             const Divider(color: Colors.white),
-            _buildDrawerItem(Icons.logout, 'Déconnexion', () {
-              Navigator.pop(context);
-              print('Déconnexion');
-            }),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.white),
+              title: const Text('Déconnexion',
+                  style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                print('Déconnexion');
+              },
+            ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildDrawerItem(IconData icon, String title, Function() onTap) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.white),
-      title: Text(title, style: const TextStyle(color: Colors.white)),
-      onTap: onTap,
     );
   }
 }

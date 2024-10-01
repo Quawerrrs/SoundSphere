@@ -12,7 +12,8 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final User? user = FirebaseAuth.instance.currentUser;
-  List<String> playlists = []; // Liste des playlists récupérées depuis Firestore
+  List<String> playlists = [];
+  Map<String, IconData> playlistIcons = {}; // Associe les icônes aux playlists
 
   @override
   void initState() {
@@ -32,14 +33,80 @@ class _HomePageState extends State<HomePage> {
         if (userDoc.exists) {
           List<dynamic> userPlaylists = userDoc['playlists'] ?? [];
           setState(() {
-            // Limiter les playlists à un maximum de 6
             playlists = List<String>.from(userPlaylists).take(6).toList();
           });
+        } else {
+          print('Le document de l\'utilisateur n\'existe pas.');
         }
       } catch (e) {
         print('Erreur lors de la récupération des playlists : $e');
       }
     }
+  }
+
+  // Fonction pour construire le widget de playlist avec nom
+  Widget _buildPlaylistCard(String playlistTitle) {
+    return GestureDetector(
+      onTap: () {
+        // Navigation vers la page PlaylistPage lors du clic
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => Playlist(playlistTitle: playlistTitle),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(8.0),
+        decoration: BoxDecoration(
+          color: const Color.fromARGB(255, 95, 95, 95), // Couleur gris foncé
+          borderRadius: BorderRadius.circular(16), // Bords arrondis
+          boxShadow: [
+            BoxShadow(
+              color: Colors.blue.withOpacity(0.5), // Ombre lumineuse
+              spreadRadius: 3,
+              blurRadius: 15,
+              offset: const Offset(0, 3), // Déplacement de l'ombre
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2), // Ombre douce
+              spreadRadius: 2,
+              blurRadius: 5,
+              offset: const Offset(0, 2), // Déplacement de l'ombre
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Espace pour une icône par défaut (1/3 de la largeur)
+            Expanded(
+              flex: 1,
+              child: CircleAvatar(
+                backgroundColor: Colors.black,
+                child: Icon(
+                  Icons.music_note, // Icône par défaut
+                  color: Colors.white,
+                  size: 30,
+                ),
+              ),
+            ),
+            // Espace pour le nom de la playlist (2/3 de la largeur)
+            Expanded(
+              flex: 2,
+              child: Text(
+                playlistTitle,
+                style: const TextStyle(
+                  color: Colors.white, // Texte en blanc
+                  fontSize: 14, // Taille du texte ajustée
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.left, // Aligner le texte à gauche
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -56,42 +123,15 @@ class _HomePageState extends State<HomePage> {
         child: GridView.builder(
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2, // Nombre de colonnes
-            crossAxisSpacing: 16.0, // Plus d'espacement horizontal
-            mainAxisSpacing: 16.0, // Plus d'espacement vertical
+            crossAxisSpacing: 16.0, // Espacement horizontal
+            mainAxisSpacing: 20.0, // Espacement vertical
             childAspectRatio: 3 / 1, // Ratio largeur/hauteur pour les cellules
           ),
           itemCount: allPlaylists.length.clamp(0, 6), // Maximum de 6 éléments
           itemBuilder: (context, index) {
             String playlistTitle = allPlaylists[index];
-            return GestureDetector(
-              onTap: () {
-                // Navigation vers la page PlaylistPage lors du clic
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => Playlist(playlistTitle: playlistTitle),
-                  ),
-                );
-              },
-              child: Container(
-                height: 60, // Hauteur du bandeau fixée à 60px
-                decoration: BoxDecoration(
-                  color: const Color.fromARGB(255, 95, 95, 95), // Couleur gris foncé
-                  borderRadius: BorderRadius.circular(16), // Bords plus arrondis
-                ),
-                child: Center(
-                  child: Text(
-                    playlistTitle,
-                    style: const TextStyle(
-                      color: Colors.white, // Texte en blanc
-                      fontSize: 14, // Taille du texte ajustée
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-            );
+            return _buildPlaylistCard(
+                playlistTitle); // Utiliser la fonction pour créer la carte
           },
         ),
       ),
