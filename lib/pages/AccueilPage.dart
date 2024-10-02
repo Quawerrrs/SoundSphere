@@ -6,6 +6,7 @@ import 'MembersPage.dart';
 import 'HomePage.dart';
 import 'PlaylistPage.dart';
 import 'dart:async'; // Pour le timer
+import 'Recherche.dart'; // Import de la page de recherche
 
 void main() {
   runApp(const MyApp());
@@ -50,9 +51,11 @@ class _AccueilPageState extends State<AccueilPage> {
   int _selectedPageIndex = 0;
   double _animationValue = 0;
 
+  // Ajout de la page de recherche dans la liste des pages
   final List<Widget> _pages = [
     HomePage(),
     PlaylistPage(),
+    MusicSearchScreen(), // Ajout de la page de recherche ici
   ];
 
   late PageController _pageController;
@@ -61,7 +64,7 @@ class _AccueilPageState extends State<AccueilPage> {
   void initState() {
     super.initState();
     _fetchProfileImage();
-    _pageController = PageController(); // Initialize PageController
+    _pageController = PageController(); // Initialisation du PageController
     Timer.periodic(const Duration(seconds: 5), (timer) {
       setState(() {
         _animationValue = _animationValue == 0 ? 1 : 0;
@@ -92,12 +95,12 @@ class _AccueilPageState extends State<AccueilPage> {
     setState(() {
       _selectedPageIndex = index;
     });
-    _pageController.jumpToPage(index); // Change page in PageView
+    _pageController.jumpToPage(index); // Changer la page dans le PageView
   }
 
   @override
   void dispose() {
-    _pageController.dispose(); // Dispose of PageController
+    _pageController.dispose(); // Dispose du PageController
     super.dispose();
   }
 
@@ -166,7 +169,7 @@ class _AccueilPageState extends State<AccueilPage> {
                       icon: const Icon(Icons.search, color: Colors.white),
                       iconSize: 40,
                       onPressed: () {
-                        print('Rechercher');
+                        _onPageSelected(2); // Sélectionner la page de recherche
                       },
                       tooltip: 'Rechercher',
                     ),
