@@ -25,7 +25,7 @@ dependencies:
   # Dependencies for network
   http: ^0.13.4 # Pour les requêtes HTTP
   url_launcher: ^6.0.20 # Pour lancer des URLs externes
-  audioplayers: ^1.2.0
+  youtube_player_flutter: ^9.1.1
 
 dev_dependencies:
   flutter_test:

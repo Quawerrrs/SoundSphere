@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'Playlist.dart'; // Import de la page PlaylistPage
+import 'Playlist.dart'; // Import de la page Playlist
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -13,15 +13,16 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final User? user = FirebaseAuth.instance.currentUser;
   List<String> playlists = [];
-  Map<String, IconData> playlistIcons = {}; // Associe les icônes aux playlists
+  Map<String, List<String>> playlistSongs = {};
+  final String likedPlaylist =
+      "Titres likés"; // Définir le nom de la playlist "Titres likés"
 
   @override
   void initState() {
     super.initState();
-    _fetchPlaylists(); // Récupérer les playlists au chargement de la page
+    _fetchPlaylists();
   }
 
-  // Fonction pour récupérer les playlists de Firestore
   Future<void> _fetchPlaylists() async {
     if (user != null) {
       try {
@@ -35,8 +36,23 @@ class _HomePageState extends State<HomePage> {
           setState(() {
             playlists = List<String>.from(userPlaylists).take(6).toList();
           });
-        } else {
-          print('Le document de l\'utilisateur n\'existe pas.');
+
+          for (var playlist in playlists) {
+            DocumentSnapshot playlistDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user!.uid)
+                .collection('playlists')
+                .doc(playlist)
+                .get();
+
+            if (playlistDoc.exists) {
+              List<dynamic> songs = playlistDoc['songs'] ?? [];
+              setState(() {
+                playlistSongs[playlist] =
+                    List<String>.from(songs.map((song) => song['videoId']));
+              });
+            }
+          }
         }
       } catch (e) {
         print('Erreur lors de la récupération des playlists : $e');
@@ -44,15 +60,15 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // Fonction pour construire le widget de playlist avec nom
   Widget _buildPlaylistCard(String playlistTitle) {
     return GestureDetector(
       onTap: () {
-        // Navigation vers la page PlaylistPage lors du clic
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => Playlist(playlistTitle: playlistTitle),
+            builder: (context) => Playlist(
+              playlistName: playlistTitle,
+            ),
           ),
         );
       },
@@ -78,7 +94,6 @@ class _HomePageState extends State<HomePage> {
         ),
         child: Row(
           children: [
-            // Espace pour une icône par défaut (1/3 de la largeur)
             Expanded(
               flex: 1,
               child: CircleAvatar(
@@ -90,7 +105,6 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-            // Espace pour le nom de la playlist (2/3 de la largeur)
             Expanded(
               flex: 2,
               child: Text(
@@ -111,11 +125,11 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // Une playlist fixe intitulée "Titres likés"
-    final String playlistLiked = "Titres likés";
-
-    // Ajouter la playlist "Titres likés" en première position
-    final List<String> allPlaylists = [playlistLiked, ...playlists];
+    // Ajoutez "Titres likés" en premier, seulement si elle n'est pas déjà dans les playlists de l'utilisateur
+    final List<String> allPlaylists = [
+      likedPlaylist,
+      ...playlists.where((playlist) => playlist != likedPlaylist)
+    ];
 
     return Scaffold(
       body: Padding(

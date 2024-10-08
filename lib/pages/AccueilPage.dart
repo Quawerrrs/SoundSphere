@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'ProfilePage.dart';
 import 'MembersPage.dart';
 import 'HomePage.dart';
-import 'PlaylistPage.dart';
+import 'PlaylisteListe.dart';
 import 'dart:async'; // Pour le timer
 import 'Recherche.dart'; // Import de la page de recherche
 
@@ -54,7 +54,7 @@ class _AccueilPageState extends State<AccueilPage> {
   // Ajout de la page de recherche dans la liste des pages
   final List<Widget> _pages = [
     HomePage(),
-    PlaylistPage(),
+    PlaylisteListe(),
     MusicSearchScreen(), // Ajout de la page de recherche ici
   ];
 

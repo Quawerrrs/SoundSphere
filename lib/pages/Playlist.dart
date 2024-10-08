@@ -1,121 +1,116 @@
 import 'package:flutter/material.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class Playlist extends StatefulWidget {
-  final String playlistTitle;
+  final String playlistName;
 
-  const Playlist({Key? key, required this.playlistTitle}) : super(key: key);
+  Playlist({required this.playlistName});
 
   @override
   _PlaylistState createState() => _PlaylistState();
 }
 
 class _PlaylistState extends State<Playlist> {
-  String searchQuery = "";
-  int numberOfSongs = 20; // Exemple : nombre de titres dans la playlist
-  bool isShuffle = false; // Booléen pour déterminer si on lit en mode aléatoire ou dans l'ordre
+  List<Map<String, String>> _songs = [];
+  final User? user = FirebaseAuth.instance.currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPlaylistSongs();
+  }
+
+  Future<void> _fetchPlaylistSongs() async {
+    if (user != null) {
+      try {
+        DocumentSnapshot playlistDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user!.uid)
+            .collection('playlists')
+            .doc(widget.playlistName)
+            .get();
+
+        if (playlistDoc.exists) {
+          List<dynamic> playlistSongs = playlistDoc['songs'] ?? [];
+          setState(() {
+            _songs = List<Map<String, String>>.from(
+                playlistSongs.map((song) => Map<String, String>.from(song)));
+          });
+        }
+      } catch (e) {
+        print(
+            'Erreur lors de la récupération des musiques de la playlist : $e');
+      }
+    }
+  }
+
+  void _playSong(String videoId) {
+    YoutubePlayerController _controller = YoutubePlayerController(
+      initialVideoId: videoId,
+      flags: YoutubePlayerFlags(
+        autoPlay: true,
+        mute: false,
+      ),
+    );
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: YoutubePlayer(controller: _controller),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black, // Fond noir
       appBar: AppBar(
-        title: Text(widget.playlistTitle, style: const TextStyle(fontSize: 18)),
+        title: Text('Playlist: ${widget.playlistName}'),
+        backgroundColor: Colors.purple, // Garde la couleur de la barre d'app
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start, // Aligner les éléments à gauche
-          children: [
-            // Barre de recherche
-            SizedBox(
-              height: 35,
-              child: TextField(
-                onChanged: (value) {
-                  setState(() {
-                    searchQuery = value;
-                  });
-                },
-                decoration: InputDecoration(
-                  hintText: 'Rechercher...',
-                  filled: true,
-                  fillColor: Colors.white,
-                  prefixIcon: const Icon(Icons.search, size: 18),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
+      body: _songs.isEmpty
+          ? Center(
+              child: Text(
+                'Aucune musique dans cette playlist.',
+                style: TextStyle(color: Colors.white, fontSize: 18),
               ),
-            ),
-            const SizedBox(height: 20), // Espacement entre la barre de recherche et les éléments en dessous
-
-            // Texte pour le nombre de titres et les boutons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween, // Espace entre les éléments
-              children: [
-                Text('Nombre de titres : $numberOfSongs', style: const TextStyle(fontSize: 16)),
-
-                // Boutons Shuffle et Play
-                Row(
-                  children: [
-                    // Bouton pour choisir lecture en ordre ou aléatoire
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          isShuffle = !isShuffle; // Inverser l'état du mode aléatoire
-                        });
-                        print(isShuffle ? 'Lecture en mode aléatoire' : 'Lecture en ordre');
-                      },
-                      child: Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300], // Couleur gris clair
-                          shape: BoxShape.circle, // Forme ronde
-                        ),
-                        child: Icon(
-                          isShuffle ? Icons.shuffle : Icons.format_list_bulleted, // Icône aléatoire ou ordre
-                          color: Colors.black,
-                          size: 30,
-                        ),
-                      ),
+            )
+          : ListView.builder(
+              itemCount: _songs.length,
+              itemBuilder: (context, index) {
+                final song = _songs[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 8.0, horizontal: 16.0),
+                  child: ListTile(
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    const SizedBox(width: 10), // Espacement entre les deux boutons
-
-                    // Bouton Play en bas à droite avec un cercle vert autour
-                    GestureDetector(
-                      onTap: () {
-                        print('Play button pressed');
-                        // Action pour lancer la lecture des musiques
-                      },
-                      child: Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: Colors.green, // Couleur verte
-                          shape: BoxShape.circle, // Forme ronde
-                        ),
-                        child: const Icon(
-                          Icons.play_arrow,
+                    tileColor:
+                        Colors.grey[900], // Fond sombre pour les chansons
+                    leading: Icon(Icons.music_note, color: Colors.purple),
+                    title: Text(
+                      song['title'] ?? 'Titre inconnu',
+                      style: TextStyle(
                           color: Colors.white,
-                          size: 30,
-                        ),
-                      ),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18),
                     ),
-                  ],
-                ),
-              ],
+                    trailing: IconButton(
+                      icon: Icon(Icons.play_arrow, color: Colors.purple),
+                      onPressed: () {
+                        _playSong(song['videoId'] ?? '');
+                      },
+                    ),
+                  ),
+                );
+              },
             ),
-
-            const SizedBox(height: 20), // Espacement entre les éléments
-
-            // Contenu principal de la playlist
-            Center(
-              child: Text('Contenu de la playlist : ${widget.playlistTitle}'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
