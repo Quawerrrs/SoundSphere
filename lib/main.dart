@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'pages/AccueilPage.dart';
 
 // Remplacez par votre configuration Firebase
@@ -16,9 +14,6 @@ const firebaseOptions = FirebaseOptions(
   storageBucket: "music-k1zust.appspot.com",
 );
 
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-    FlutterLocalNotificationsPlugin();
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
@@ -27,62 +22,7 @@ Future<void> main() async {
     print("Firebase déjà initialisé: $e");
   }
 
-  // Initialiser Firebase Messaging et demander les autorisations
-  await _initializeFirebaseMessaging();
-
   runApp(const MyApp());
-}
-
-Future<void> _initializeFirebaseMessaging() async {
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
-
-  // Demande de permission pour recevoir des notifications
-  NotificationSettings settings = await messaging.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
-
-  if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-    print('Autorisation accordée pour les notifications.');
-  } else {
-    print('Autorisation refusée pour les notifications.');
-  }
-
-  // Configurer les notifications locales
-  const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-
-  final InitializationSettings initializationSettings =
-      InitializationSettings(android: initializationSettingsAndroid);
-
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-
-  // Afficher la notification locale lorsque le message est reçu
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    RemoteNotification? notification = message.notification;
-    AndroidNotification? android = message.notification?.android;
-
-    if (notification != null && android != null) {
-      flutterLocalNotificationsPlugin.show(
-        notification.hashCode,
-        notification.title,
-        notification.body,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            'your_channel_id', // Remplacez par votre channel ID
-            'your_channel_name', // Remplacez par votre channel name
-            importance: Importance.max,
-            priority: Priority.high,
-          ),
-        ),
-      );
-    }
-  });
-
-  // Obtenir le token FCM pour cet appareil
-  String? token = await messaging.getToken();
-  print('FCM Token: $token');
 }
 
 class MyApp extends StatelessWidget {

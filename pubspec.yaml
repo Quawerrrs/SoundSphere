@@ -1,11 +1,11 @@
 name: SoundSphere
-description: "A simple sound player with multi "
-publish_to: "none" # Remove this line if you wish to publish to pub.dev
+description: "A simple sound player with multi-functionality"
+publish_to: "none" # Retirez cette ligne si vous souhaitez publier sur pub.dev
 
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.5.3
+  sdk: ">=3.5.0 <4.0.0" # Assurez-vous de définir la plage correcte du SDK Flutter/Dart
 
 dependencies:
   flutter:
@@ -16,17 +16,18 @@ dependencies:
 
   # Firebase dependencies
   firebase_core: ^3.5.0 # Mise à jour pour correspondre à cloud_firestore
-  firebase_auth: ^5.3.1 # Authentification Firebase (version compatible)
+  firebase_auth: ^5.3.1 # Authentification Firebase
   cloud_firestore: ^5.4.3 # Firestore Firebase
   firebase_storage: ^12.3.1 # Dernière version compatible avec firebase_core
   google_sign_in: ^6.2.1 # Authentification Google
-  image_picker: ^0.8.6+3 # Pour sélectionner des images dans le téléphone (version stable)
-  firebase_messaging: 15.1.3
-  flutter_local_notifications: 17.2.3
+  image_picker: ^0.8.6+3 # Sélection d'images
+  flutter_local_notifications: ^17.2.3 # Notifications locales (dernière version compatible)
+  just_audio: ^0.9.18 # Pour la lecture audio
+
   # Dependencies for network
-  http: ^0.13.4 # Pour les requêtes HTTP
-  url_launcher: ^6.0.20 # Pour lancer des URLs externes
-  youtube_player_flutter: ^9.1.1
+  http: ^0.13.4 # Requêtes HTTP
+  url_launcher: ^6.0.20 # Lancer des URLs externes
+  youtube_player_flutter: ^9.1.1 # Pour intégrer des vidéos YouTube
 
 dev_dependencies:
   flutter_test:
@@ -34,14 +35,19 @@ dev_dependencies:
 
   # Le package "flutter_lints" contient un ensemble de règles de lint recommandées
   flutter_lints: ^4.0.0
-  flutter_launcher_icons: ^0.13.1 # Vérifiez la dernière version
+  flutter_launcher_icons: ^0.13.1 # Générer les icônes d'application
 
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/icons/soundsphere.png" # Chemin vers votre icône
-  adaptive_icon_background: "#FFFFFF" # Couleur de fond pour les icônes adaptatives Android
+  image_path: "assets/icons/soundsphere.png" # Chemin vers votre icône d'application
+  adaptive_icon_background: "#FFFFFF" # Couleur de fond pour icônes adaptatives Android
   adaptive_icon_foreground: "assets/icons/soundsphere.png" # Chemin vers l'icône de premier plan
 
 flutter:
   uses-material-design: true
+
+  # Assurez-vous que vous avez ajouté les ressources dans le répertoire "assets"
+  assets:
+    - assets/icons/
+    - assets/images/

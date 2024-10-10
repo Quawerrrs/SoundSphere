@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 class MembersPage extends StatefulWidget {
   const MembersPage({super.key});
@@ -11,16 +9,40 @@ class MembersPage extends StatefulWidget {
   _MembersPageState createState() => _MembersPageState();
 }
 
-class _MembersPageState extends State<MembersPage> {
+class _MembersPageState extends State<MembersPage>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
+
+  List<DocumentSnapshot> friends = [];
   List<DocumentSnapshot> members = [];
   List<DocumentSnapshot> filteredMembers = [];
+  List<Map<String, dynamic>> pendingRequests = []; // Changement ici
   bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchMembers(); // Initialiser la récupération des utilisateurs
+    _tabController = TabController(length: 3, vsync: this);
+    _fetchFriends();
+    _fetchMembers();
+    _fetchPendingRequests();
+  }
+
+  // Fonction pour récupérer les amis de l'utilisateur
+  void _fetchFriends() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser != null) {
+      QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('friends')
+          .where('userId', isEqualTo: currentUser.uid)
+          .get();
+
+      setState(() {
+        friends = snapshot.docs;
+      });
+    }
   }
 
   // Fonction pour récupérer les utilisateurs de Firestore
@@ -28,14 +50,6 @@ class _MembersPageState extends State<MembersPage> {
     print("Démarrage de la récupération des utilisateurs...");
     FirebaseFirestore.instance.collection('users').snapshots().listen(
       (snapshot) {
-        if (snapshot.docs.isEmpty) {
-          print("Aucun utilisateur trouvé dans la collection 'users'.");
-        } else {
-          for (var doc in snapshot.docs) {
-            print("Utilisateur trouvé : ${doc.data()}");
-          }
-        }
-
         setState(() {
           members = snapshot.docs;
           filteredMembers = members.where((member) {
@@ -57,6 +71,44 @@ class _MembersPageState extends State<MembersPage> {
         });
       },
     );
+  }
+
+  // Fonction pour récupérer les demandes d'amis en cours avec les pseudos
+  void _fetchPendingRequests() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser != null) {
+      QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('friend_requests')
+          .where('from', isEqualTo: currentUser.uid)
+          .get();
+
+      List<Map<String, dynamic>> requestsWithPseudos = [];
+
+      for (var request in snapshot.docs) {
+        final requestData = request.data() as Map<String, dynamic>;
+        final userId = requestData['to'];
+
+        // Récupérer le pseudo de chaque utilisateur lié à la demande
+        DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .get();
+        final userData = userSnapshot.data() as Map<String, dynamic>?;
+
+        if (userData != null && userData.containsKey('pseudo')) {
+          requestsWithPseudos.add({
+            'requestId': request.id, // Ajout de l'ID de la demande
+            'userId': userId,
+            'pseudo': userData['pseudo'],
+          });
+        }
+      }
+
+      setState(() {
+        pendingRequests = requestsWithPseudos;
+      });
+    }
   }
 
   // Filtrage des membres en fonction de la recherche par pseudo
@@ -94,9 +146,6 @@ class _MembersPageState extends State<MembersPage> {
         'timestamp': FieldValue.serverTimestamp(),
       });
 
-      // Notification pour l'utilisateur ciblé
-      await _sendNotification(userId, "Vous avez reçu une demande d'ami!");
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Demande d'ami envoyée!")),
       );
@@ -109,51 +158,30 @@ class _MembersPageState extends State<MembersPage> {
     }
   }
 
-  // Fonction pour envoyer une notification via FCM
-  Future<void> _sendNotification(String userId, String message) async {
+  // Fonction pour supprimer une demande d'ami
+  void _deleteFriendRequest(String requestId) async {
     try {
-      // Récupérer le token de notification de l'utilisateur cible
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get();
-      String? token = userDoc['fcmToken'];
+      await FirebaseFirestore.instance
+          .collection('friend_requests')
+          .doc(requestId)
+          .delete();
 
-      if (token == null) {
-        print("Aucun token de notification trouvé pour l'utilisateur $userId");
-        return;
-      }
-
-      // Préparer les données de la notification
-      final notificationData = {
-        'to': token,
-        'notification': {
-          'title': 'Nouvelle demande d\'ami',
-          'body': message,
-        },
-        'data': {
-          'click_action': 'FLUTTER_NOTIFICATION_CLICK',
-        },
-      };
-
-      // Envoyer la notification via Firebase Cloud Messaging
-      final response = await http.post(
-        Uri.parse('https://fcm.googleapis.com/fcm/send'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization':
-              'key=YOUR_SERVER_KEY', // Remplacez par votre clé de serveur FCM
-        },
-        body: json.encode(notificationData),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Demande d'ami supprimée.")),
       );
 
-      if (response.statusCode == 200) {
-        print('Notification envoyée avec succès.');
-      } else {
-        print('Erreur lors de l\'envoi de la notification : ${response.body}');
-      }
+      // Met à jour la liste des demandes après la suppression
+      setState(() {
+        pendingRequests
+            .removeWhere((request) => request['requestId'] == requestId);
+      });
     } catch (e) {
-      print("Erreur lors de l'envoi de la notification : $e");
+      print("Erreur lors de la suppression de la demande d'ami : $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text("Erreur lors de la suppression de la demande d'ami.")),
+      );
     }
   }
 
@@ -163,70 +191,118 @@ class _MembersPageState extends State<MembersPage> {
       appBar: AppBar(
         title: const Text('Utilisateurs'),
         backgroundColor: Colors.black,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetchMembers,
-          ),
-        ],
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Amis'),
+            Tab(text: 'Recherche'),
+            Tab(text: 'Demandes en cours'),
+          ],
+        ),
       ),
-      body: Column(
+      body: TabBarView(
+        controller: _tabController,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Rechercher par pseudo...',
-                prefixIcon: const Icon(Icons.search, color: Colors.white),
-                filled: true,
-                fillColor: Colors.grey[800],
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
+          // Onglet Amis
+          ListView.builder(
+            itemCount: friends.length,
+            itemBuilder: (context, index) {
+              final friend = friends[index].data() as Map<String, dynamic>;
+              return Card(
+                color: Colors.grey[850],
+                margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                child: ListTile(
+                  title: Text(
+                    friend['pseudo'] ?? 'Pseudo non disponible',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // Onglet Recherche
+          Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Rechercher par pseudo...',
+                    prefixIcon: const Icon(Icons.search, color: Colors.white),
+                    filled: true,
+                    fillColor: Colors.grey[800],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                  onChanged: _filterMembers,
                 ),
               ),
-              style: const TextStyle(color: Colors.white),
-              onChanged: _filterMembers,
-            ),
+              Expanded(
+                child: isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : filteredMembers.isEmpty && _searchController.text.isEmpty
+                        ? const Center(
+                            child: Text('Aucun utilisateur trouvé.',
+                                style: TextStyle(color: Colors.white)))
+                        : ListView.builder(
+                            itemCount: filteredMembers.length,
+                            itemBuilder: (context, index) {
+                              final member = filteredMembers[index];
+                              final data =
+                                  member.data() as Map<String, dynamic>;
+                              return Card(
+                                color: Colors.grey[850],
+                                margin: const EdgeInsets.symmetric(
+                                    vertical: 8, horizontal: 16),
+                                child: ListTile(
+                                  title: Text(
+                                    data['pseudo'] ?? 'Pseudo non disponible',
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.person_add,
+                                        color: Colors.blue),
+                                    onPressed: () {
+                                      // Appel de la méthode pour envoyer une demande d'ami
+                                      _sendFriendRequest(member.id);
+                                    },
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+              ),
+            ],
           ),
-          Expanded(
-            child: isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : filteredMembers.isEmpty && _searchController.text.isEmpty
-                    ? const Center(
-                        child: Text('Aucun utilisateur trouvé.',
-                            style: TextStyle(color: Colors.white)))
-                    : ListView.builder(
-                        itemCount: filteredMembers.length,
-                        itemBuilder: (context, index) {
-                          final member = filteredMembers[index];
-                          final data = member.data() as Map<String, dynamic>;
-                          return Card(
-                            color: Colors.grey[850],
-                            margin: const EdgeInsets.symmetric(
-                                vertical: 8, horizontal: 16),
-                            child: ListTile(
-                              title: Text(
-                                data['pseudo'] ?? 'Pseudo non disponible',
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.person_add,
-                                    color: Colors.blue),
-                                onPressed: () {
-                                  // Appel de la méthode pour envoyer une demande d'ami
-                                  _sendFriendRequest(member.id);
-                                },
-                              ),
-                              onTap: () {
-                                print(
-                                    'Utilisateur sélectionné avec pseudo : ${data['pseudo']}');
-                              },
-                            ),
-                          );
-                        },
-                      ),
+
+          // Onglet Demandes en cours
+          ListView.builder(
+            itemCount: pendingRequests.length,
+            itemBuilder: (context, index) {
+              final request = pendingRequests[index];
+              return Card(
+                color: Colors.grey[850],
+                margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                child: ListTile(
+                  title: Text(
+                    'Demande d\'ami à ${request['pseudo']}',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () {
+                      // Appel de la méthode pour supprimer la demande d'ami
+                      _deleteFriendRequest(request['requestId']);
+                    },
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
