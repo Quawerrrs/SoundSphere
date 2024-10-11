@@ -50,4 +50,3 @@ flutter:
   # Assurez-vous que vous avez ajouté les ressources dans le répertoire "assets"
   assets:
     - assets/icons/
-    - assets/images/
