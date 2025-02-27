@@ -7,6 +7,7 @@ import 'HomePage.dart';
 import 'PlaylisteListe.dart';
 import 'dart:async'; // Pour le timer
 import 'Recherche.dart'; // Import de la page de recherche
+import 'LoginPage.dart'; // Assurez-vous d'importer votre LoginPage
 
 void main() {
   runApp(const MyApp());
@@ -282,9 +283,15 @@ class _AccueilPageState extends State<AccueilPage> {
               leading: const Icon(Icons.logout, color: Colors.white),
               title: const Text('Déconnexion',
                   style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                print('Déconnexion');
+              onTap: () async {
+                // Déconnexion de l'utilisateur
+                await FirebaseAuth.instance.signOut();
+
+                // Rediriger vers la page de login
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                );
               },
             ),
           ],

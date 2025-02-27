@@ -20,6 +20,7 @@ class _MembersPageState extends State<MembersPage>
   List<Map<String, dynamic>> pendingRequests = []; // Demandes envoyées
   List<Map<String, dynamic>> receivedRequests = []; // Demandes reçues
   bool isLoading = true;
+  List<dynamic> friendsList = [];
 
   @override
   void initState() {
@@ -31,32 +32,39 @@ class _MembersPageState extends State<MembersPage>
     _fetchReceivedRequests(); // Récupérer les demandes reçues
   }
 
-  // Fonction pour récupérer les amis de l'utilisateur
+  // Fonction pour récupérer les amis de l'utilisateur avec leurs pseudos
   void _fetchFriends() async {
-    final currentUser = FirebaseAuth.instance.currentUser;
+  final currentUser = FirebaseAuth.instance.currentUser;
 
-    if (currentUser != null) {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection('friends')
-          .where('userId', isEqualTo: currentUser.uid)
-          .get();
+  if (currentUser != null) {
+    // Récupérer la liste des amis à partir de Firestore
+    DocumentSnapshot currentUserDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .get();
 
-      setState(() {
-        friends = snapshot.docs;
-      });
+    // Vérification que les données sont bien un Map<String, dynamic>
+    if (currentUserDoc.data() != null && currentUserDoc.data() is Map<String, dynamic>) {
+      Map<String, dynamic> currentUserData = currentUserDoc.data() as Map<String, dynamic>;
+
+      friendsList = currentUserData['friends'] ?? [];
     }
 
-    // Récupérer les amis à partir de la collection 'users'
-    DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(currentUser!.uid)
-        .get();
-    List<dynamic> friendIds = userSnapshot.data()?['friends'] ?? [];
+    List<DocumentSnapshot> fetchedFriends = [];
+    for (String friendId in friendsList) {
+      DocumentSnapshot friendSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(friendId)
+          .get();
+      fetchedFriends.add(friendSnapshot);
+    }
 
     setState(() {
-      friends = friendIds.map((friendId) => friendId.toString()).toList();
+      friends = fetchedFriends; // Mettre à jour la liste d'amis avec les documents utilisateurs complets
     });
   }
+}
+
 
   // Fonction pour récupérer les utilisateurs de Firestore
   void _fetchMembers() {
@@ -161,27 +169,14 @@ class _MembersPageState extends State<MembersPage>
 
     if (currentUser != null) {
       try {
-        // Ajouter l'ami à la collection 'friends'
-        await FirebaseFirestore.instance.collection('friends').add({
-          'userId': currentUser.uid,
-          'friendId': userId,
-          'timestamp': FieldValue.serverTimestamp(),
+        // Ajouter l'ami à la collection 'friends' de l'utilisateur actuel
+        await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).update({
+          'friends': FieldValue.arrayUnion([userId]),
         });
 
-        // Ajouter l'ID de l'ami à la liste 'friends' de l'utilisateur courant
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUser.uid)
-            .update({
-          'friends': FieldValue.arrayUnion([userId])
-        });
-
-        // Ajouter l'ID de l'utilisateur courant à la liste 'friends' de l'ami
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userId)
-            .update({
-          'friends': FieldValue.arrayUnion([currentUser.uid])
+        // Ajouter l'utilisateur actuel dans la liste des amis de l'autre utilisateur
+        await FirebaseFirestore.instance.collection('users').doc(userId).update({
+          'friends': FieldValue.arrayUnion([currentUser.uid]),
         });
 
         // Supprimer la demande d'ami
@@ -194,13 +189,10 @@ class _MembersPageState extends State<MembersPage>
           const SnackBar(content: Text("Demande d'ami acceptée.")),
         );
 
-        // Recharger la liste des amis
-        _fetchFriends();
-
-        // Mettre à jour l'état pour supprimer la demande reçue
+        // Mettre à jour l'état
         setState(() {
-          receivedRequests
-              .removeWhere((request) => request['requestId'] == requestId);
+          receivedRequests.removeWhere((request) => request['requestId'] == requestId);
+          _fetchFriends(); // Rafraîchir la liste d'amis
         });
       } catch (e) {
         print("Erreur lors de l'acceptation de la demande : $e");
@@ -223,10 +215,8 @@ class _MembersPageState extends State<MembersPage>
         const SnackBar(content: Text("Demande d'ami refusée.")),
       );
 
-      // Mettre à jour l'état
       setState(() {
-        receivedRequests
-            .removeWhere((request) => request['requestId'] == requestId);
+        receivedRequests.removeWhere((request) => request['requestId'] == requestId);
       });
     } catch (e) {
       print("Erreur lors du refus de la demande : $e");
@@ -236,39 +226,45 @@ class _MembersPageState extends State<MembersPage>
     }
   }
 
-  // Fonction pour envoyer une demande d'ami
-  void _sendFriendRequest(String userId) async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-
-    if (currentUser != null) {
-      try {
-        await FirebaseFirestore.instance.collection('friend_requests').add({
-          'from': currentUser.uid,
-          'to': userId,
-          'timestamp': FieldValue.serverTimestamp(),
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Demande d'ami envoyée.")),
-        );
-      } catch (e) {
-        print("Erreur lors de l'envoi de la demande : $e");
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text("Erreur lors de l'envoi de la demande.")),
-        );
-      }
-    }
-  }
-
-  // Fonction pour filtrer les membres
+  // Fonction pour filtrer les membres (recherche)
   void _filterMembers(String query) {
     setState(() {
       filteredMembers = members.where((member) {
         final data = member.data() as Map<String, dynamic>;
         final pseudo = data['pseudo']?.toLowerCase() ?? '';
-        return pseudo.contains(query.toLowerCase());
+        return pseudo.contains(query.toLowerCase()) &&
+            !friendsList.contains(member.id); // Vérifie si déjà ami
       }).toList();
+    });
+  }
+
+  // Fonction pour envoyer une demande d'ami
+  void _sendFriendRequest(String userId) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser != null) {
+      await FirebaseFirestore.instance.collection('friend_requests').add({
+        'from': currentUser.uid,
+        'to': userId,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Demande d'ami envoyée.")),
+      );
+    }
+  }
+
+  // Fonction pour supprimer une demande d'ami envoyée
+  void _deleteFriendRequest(String requestId) async {
+    await FirebaseFirestore.instance.collection('friend_requests').doc(requestId).delete();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Demande d'ami annulée.")),
+    );
+
+    setState(() {
+      pendingRequests.removeWhere((request) => request['requestId'] == requestId);
     });
   }
 
@@ -295,27 +291,17 @@ class _MembersPageState extends State<MembersPage>
           ListView.builder(
             itemCount: friends.length,
             itemBuilder: (context, index) {
-              final friendId = friends[index].id;
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(friendId)
-                    .get(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError || !snapshot.hasData) {
-                    return const Center(
-                        child: Text('Erreur lors de la récupération des amis'));
-                  }
-                  final friendData =
-                      snapshot.data!.data() as Map<String, dynamic>;
-                  return ListTile(
-                    title:
-                        Text(friendData['pseudo'] ?? 'Pseudo non disponible'),
-                  );
-                },
+              final friendData = friends[index].data() as Map<String, dynamic>;
+
+              return Card(
+                color: Colors.grey[850],
+                margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+                child: ListTile(
+                  title: Text(
+                    friendData['pseudo'] ?? 'Pseudo non disponible',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
               );
             },
           ),
@@ -329,31 +315,46 @@ class _MembersPageState extends State<MembersPage>
                   controller: _searchController,
                   onChanged: _filterMembers,
                   decoration: const InputDecoration(
-                    labelText: 'Rechercher par pseudo',
+                    labelText: 'Rechercher des utilisateurs...',
                     border: OutlineInputBorder(),
                   ),
                 ),
               ),
               Expanded(
-                child: ListView.builder(
-                  itemCount: filteredMembers.length,
-                  itemBuilder: (context, index) {
-                    final memberData =
-                        filteredMembers[index].data() as Map<String, dynamic>;
-                    final userId = filteredMembers[index].id;
+                child: isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : ListView.builder(
+                        itemCount: filteredMembers.length,
+                        itemBuilder: (context, index) {
+                          final memberData = filteredMembers[index].data()
+                              as Map<String, dynamic>;
 
-                    return ListTile(
-                      title:
-                          Text(memberData['pseudo'] ?? 'Pseudo non disponible'),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.add),
-                        onPressed: () {
-                          _sendFriendRequest(userId);
+                          return Card(
+                            color: Colors.grey[850],
+                            margin: const EdgeInsets.symmetric(
+                                vertical: 5, horizontal: 10),
+                            child: ListTile(
+                              title: Text(
+                                memberData['pseudo'] ?? 'Pseudo non disponible',
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                              trailing: friendsList.contains(filteredMembers[index].id)
+                                  ? const Text(
+                                      'Ami',
+                                      style: TextStyle(color: Colors.green),
+                                    )
+                                  : IconButton(
+                                      icon: const Icon(Icons.person_add,
+                                          color: Colors.white),
+                                      onPressed: () {
+                                        _sendFriendRequest(
+                                            filteredMembers[index].id);
+                                      },
+                                    ),
+                            ),
+                          );
                         },
                       ),
-                    );
-                  },
-                ),
               ),
             ],
           ),
@@ -363,9 +364,22 @@ class _MembersPageState extends State<MembersPage>
             itemCount: pendingRequests.length,
             itemBuilder: (context, index) {
               final request = pendingRequests[index];
-              return ListTile(
-                title: Text(request['pseudo']),
-                subtitle: const Text('Demande envoyée'),
+
+              return Card(
+                color: Colors.grey[850],
+                margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+                child: ListTile(
+                  title: Text(
+                    request['pseudo'] ?? 'Pseudo non disponible',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.cancel, color: Colors.red),
+                    onPressed: () {
+                      _deleteFriendRequest(request['requestId']);
+                    },
+                  ),
+                ),
               );
             },
           ),
@@ -375,25 +389,33 @@ class _MembersPageState extends State<MembersPage>
             itemCount: receivedRequests.length,
             itemBuilder: (context, index) {
               final request = receivedRequests[index];
-              return ListTile(
-                title: Text(request['pseudo']),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.check),
-                      onPressed: () {
-                        _acceptFriendRequest(
-                            request['userId'], request['requestId']);
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () {
-                        _declineFriendRequest(request['requestId']);
-                      },
-                    ),
-                  ],
+
+              return Card(
+                color: Colors.grey[850],
+                margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+                child: ListTile(
+                  title: Text(
+                    request['pseudo'] ?? 'Pseudo non disponible',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.check, color: Colors.green),
+                        onPressed: () {
+                          _acceptFriendRequest(
+                              request['userId'], request['requestId']);
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.cancel, color: Colors.red),
+                        onPressed: () {
+                          _declineFriendRequest(request['requestId']);
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
@@ -401,12 +423,5 @@ class _MembersPageState extends State<MembersPage>
         ],
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    _searchController.dispose();
-    super.dispose();
   }
 }
